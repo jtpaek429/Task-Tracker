@@ -600,6 +600,7 @@
   <input type="date" id="devDateInput" onchange="applyDevDate(this.value)" />
   <button class="btn-dev-reset" onclick="resetDevDate()">Reset to today</button>
   <button class="btn-dev-reset" onclick="generateTestTasks()">＋ Generate 5 tasks</button>
+  <button class="btn-dev-reset" onclick="clearDevTasks()">🗑 Clear dev tasks</button>
   <span id="devSimLabel"></span>
 </div>
 
@@ -1449,11 +1450,18 @@ function generateTestTasks() {
     { title: 'Research competitor pricing', due: '',                },
   ];
   samples.forEach(s => {
-    const task = { id:`t_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, title: s.title, description: '', due: s.due, link: '', completed: false, createdAt: new Date().toISOString() };
+    const task = { id:`t_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, title: s.title, description: '', due: s.due, link: '', completed: false, createdAt: new Date().toISOString(), _dev: true };
     tasks.push(task);
     dbUpsert(task);
   });
   save(); render();
+}
+
+async function clearDevTasks() {
+  const devTasks = tasks.filter(t => t._dev);
+  tasks = tasks.filter(t => !t._dev);
+  save(); render();
+  for (const t of devTasks) await dbDelete(t.id);
 }
 
 function toggleDevMode() {

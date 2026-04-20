@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:     #db4035;
+      --amber:   #f59e0b;
+      --blue:    #3b82f6;
+      --purple:  #8b5cf6;
+      --gray-50: #f9fafb;
+      --gray-100:#f3f4f6;
+      --gray-200:#e5e7eb;
+      --gray-300:#d1d5db;
+      --gray-400:#9ca3af;
+      --gray-500:#6b7280;
+      --gray-700:#374151;
+      --gray-900:#111827;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--gray-200);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 200;
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 32px; height: 32px; background: var(--red);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    }
+    .logo svg { width: 16px; height: 16px; fill: #fff; }
+    .brand h1  { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+    #appName[contenteditable] { outline: none; border-radius: 4px; padding: 0 3px; margin: 0 -3px; cursor: text; transition: background .15s; }
+    #appName[contenteditable]:hover { background: var(--gray-100); }
+    #appName[contenteditable]:focus { background: var(--gray-100); box-shadow: 0 0 0 2px var(--gray-200); }
+    .brand .sub { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+
+    .btn-dev {
+      font-size: 12px; padding: 6px 12px;
+      border: 1.5px solid var(--gray-200); border-radius: 6px;
+      background: none; color: var(--gray-500);
+      cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    .btn-dev:hover { background: var(--gray-100); }
+    .btn-dev.active { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+
+    .btn-add {
+      background: var(--red); color: #fff; border: none;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: background .15s;
+    }
+    .btn-add:hover { background: #c23028; }
+
+    /* ── Dev bar ──────────────────────────────────────── */
+    .dev-bar {
+      display: none; align-items: center; gap: 14px;
+      padding: 8px 24px;
+      background: #fef3c7; border-bottom: 1px solid #fcd34d;
+      font-size: 13px; color: #92400e;
+    }
+    .dev-bar.show { display: flex; }
+    .dev-bar strong { font-weight: 600; }
+    .dev-bar input[type="date"] {
+      border: 1.5px solid #fcd34d; border-radius: 6px;
+      padding: 4px 8px; font-size: 13px; font-family: inherit;
+      background: #fff; color: var(--gray-900); outline: none;
+    }
+    .dev-bar input[type="date"]:focus { border-color: var(--amber); }
+    .btn-dev-reset {
+      background: none; border: 1.5px solid #fcd34d;
+      border-radius: 6px; padding: 4px 10px;
+      font-size: 12px; font-weight: 500;
+      color: #92400e; cursor: pointer; font-family: inherit;
+    }
+    .btn-dev-reset:hover { background: #fde68a; }
+    #devSimLabel { font-size: 12px; color: #b45309; }
+
+    /* ── Grid layout ──────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      grid-template-areas:
+        "due-soon  upcoming  future"
+        "triage    triage    future"
+        "done      done      done";
+      gap: 16px;
+      padding: 20px 24px 48px;
+      align-items: start;
+    }
+
+    /* ── Panel base ───────────────────────────────────── */
+    .panel {
+      background: #fff;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .panel.drag-over {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px #bfdbfe;
+      background: #f0f9ff;
+    }
+
+    .panel-due-soon { grid-area: due-soon; }
+    .panel-upcoming { grid-area: upcoming; }
+    .panel-future   { grid-area: future;   }
+    .panel-triage   { grid-area: triage;   }
+    .panel-done     { grid-area: done;     }
+
+    /* ── Panel header ─────────────────────────────────── */
+    .panel-header {
+      padding: 13px 14px 11px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .panel-header.clickable { cursor: pointer; user-select: none; }
+    .panel-header.clickable:hover { background: var(--gray-50); }
+
+    .panel-title {
+      font-size: 14px; font-weight: 700;
+      display: flex; align-items: center; gap: 7px;
+      flex-wrap: wrap;
+    }
+    .panel-sub { font-size: 11px; font-weight: 400; color: var(--gray-400); }
+
+    .chevron {
+      font-size: 11px; color: var(--gray-400);
+      display: inline-block; transition: transform .25s ease;
+    }
+    .chevron.closed { transform: rotate(-90deg); }
+
+    .header-right-group { display: flex; align-items: center; gap: 8px; }
+
+    .badge {
+      font-size: 11px; font-weight: 600;
+      background: var(--gray-100); color: var(--gray-500);
+      border-radius: 100px; padding: 2px 8px; flex-shrink: 0;
+    }
+
+    .btn-plus {
+      width: 26px; height: 26px;
+      border: 1.5px solid var(--gray-200); border-radius: 6px;
+      background: none; color: var(--gray-400); font-size: 16px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      line-height: 1; transition: all .15s;
+    }
+    .btn-plus:hover { background: var(--gray-100); color: var(--gray-700); border-color: var(--gray-300); }
+
+    /* ── Collapse body ────────────────────────────────── */
+    .collapse-body {
+      overflow: hidden;
+      max-height: 3000px;
+      opacity: 1;
+      transition: max-height .35s ease, opacity .25s ease;
+    }
+    .collapse-body.closed {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    /* ── Overdue subsection ───────────────────────────── */
+    .overdue-box {
+      margin: 10px 10px 0;
+      border: 1.5px solid #fecaca;
+      border-radius: 8px; overflow: hidden;
+    }
+    .overdue-label {
+      padding: 6px 12px;
+      font-size: 11px; font-weight: 700;
+      color: var(--red); text-transform: uppercase; letter-spacing: .5px;
+      background: #fee2e2; border-bottom: 1px solid #fecaca;
+    }
+
+    /* ── Future sub-groups ────────────────────────────── */
+    .future-group { border-top: 1px solid var(--gray-100); transition: background .15s; }
+    .future-group:first-child { border-top: none; }
+    .future-group-label {
+      padding: 10px 14px 4px;
+      font-size: 11px; font-weight: 700;
+      color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px;
+    }
+    .future-group.drag-over {
+      background: #eff6ff;
+      outline: 2px dashed #93c5fd;
+      outline-offset: -3px;
+      border-radius: 6px;
+    }
+
+    /* ── Task lists ───────────────────────────────────── */
+    .task-list {
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 7px;
+      min-height: 50px;
+    }
+    /* Horizontal wrap list (triage, done) */
+    .task-list-wrap {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 12px; min-height: 70px;
+    }
+
+    .empty-msg { font-size: 12px; color: var(--gray-300); text-align: center; padding: 14px 8px; }
+
+    /* ── Task card ────────────────────────────────────── */
+    .task-card {
+      border: 1px solid var(--gray-200); border-radius: 8px;
+      padding: 10px 12px; background: #fff;
+      position: relative; cursor: grab; user-select: none;
+      transition: box-shadow .15s, border-color .15s, opacity .3s;
+    }
+    .task-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); border-color: var(--gray-300); }
+    .task-card.dragging { opacity: .35; cursor: grabbing; }
+    .task-card.done     { opacity: .45; }
+
+    /* Compact card inside horizontal wrap */
+    .task-list-wrap .task-card {
+      width: 175px; min-height: 90px;
+      display: flex; flex-direction: column;
+      cursor: default; font-size: 13px;
+    }
+
+    /* ── ★ COMPLETION ANIMATION ★ ────────────────────── */
+    /*
+      FIX: We animate the EXISTING card (before re-render).
+      .completing overrides .done's opacity so the card stays
+      visible and the strikethrough sweeps in cleanly.
+    */
+    .task-card.completing {
+      opacity: 1 !important;
+      animation: cardFlash .5s ease forwards;
+      pointer-events: none;
+    }
+    .task-card.completing .card-title {
+      /* text-decoration is already 'none' on the pre-complete card */
+      animation: strikeSlide .38s ease forwards;
+    }
+    .task-card.completing .check {
+      animation: checkBounce .3s ease;
+    }
+
+    @keyframes cardFlash {
+      0%   { background: #fff;    box-shadow: none; }
+      30%  { background: #f0fdf4; box-shadow: 0 0 0 2px #86efac; }
+      100% { background: #fff;    box-shadow: none; }
+    }
+    @keyframes strikeSlide {
+      0%   { text-decoration: line-through; text-decoration-color: transparent; color: var(--gray-900); }
+      100% { text-decoration: line-through; text-decoration-color: currentColor;  color: var(--gray-400); }
+    }
+    @keyframes checkBounce {
+      0%   { transform: scale(1);   }
+      40%  { transform: scale(1.35); }
+      100% { transform: scale(1);   }
+    }
+
+    /* Celebration emoji */
+    .cel-emoji {
+      position: absolute; top: 4px; right: 10px;
+      font-size: 20px; pointer-events: none; z-index: 10;
+      animation: emojiBurst .9s cubic-bezier(.36,.07,.19,.97) forwards;
+    }
+    @keyframes emojiBurst {
+      0%   { opacity: 0; transform: scale(.2) translateY(0);    }
+      35%  { opacity: 1; transform: scale(1.35) translateY(-8px);  }
+      70%  { opacity: 1; transform: scale(1)    translateY(-16px); }
+      100% { opacity: 0; transform: scale(.8)   translateY(-28px); }
+    }
+
+    /* ── Card internals ───────────────────────────────── */
+    .card-top  { display: flex; align-items: flex-start; gap: 9px; }
+    .card-body { flex: 1; min-width: 0; }
+
+    .check {
+      width: 16px; height: 16px;
+      border: 2px solid var(--gray-300); border-radius: 50%;
+      flex-shrink: 0; cursor: pointer; margin-top: 2px;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color .15s, background .15s;
+    }
+    .check:hover { border-color: var(--red); }
+    .check.checked { background: var(--red); border-color: var(--red); }
+    .check.checked::after {
+      content: ''; display: block;
+      width: 7px; height: 4px;
+      border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+      transform: rotate(-45deg) translateY(-1px);
+    }
+
+    .card-title {
+      font-size: 13px; font-weight: 500; line-height: 1.45;
+      word-break: break-word;
+    }
+    .task-card.done .card-title { text-decoration: line-through; color: var(--gray-400); }
+
+    .card-desc {
+      font-size: 11px; color: var(--gray-400);
+      margin-top: 3px; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .completed-at { font-size: 10px; color: var(--gray-300); margin-top: 4px; }
+
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 7px; flex-wrap: wrap; gap: 3px;
+    }
+    .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .card-due {
+      font-size: 11px; color: var(--gray-400);
+      display: flex; align-items: center; gap: 2px;
+    }
+    .card-due.overdue { color: var(--red); font-weight: 600; }
+
+    .card-link {
+      font-size: 11px; color: var(--blue);
+      text-decoration: none; display: flex; align-items: center; gap: 2px;
+    }
+    .card-link:hover { text-decoration: underline; }
+
+    .card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+    .task-card:hover .card-actions { opacity: 1; }
+
+    .act-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 3px 5px; border-radius: 4px;
+      font-size: 12px; color: var(--gray-400);
+      transition: background .15s, color .15s;
+    }
+    .act-btn:hover     { background: var(--gray-100); color: var(--gray-700); }
+    .act-btn.del:hover { background: #fee2e2; color: var(--red); }
+
+    /* Inline delete confirm */
+    .del-confirm {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 8px; padding: 6px 8px;
+      background: #fff5f5; border: 1px solid #fecaca; border-radius: 6px;
+      font-size: 12px;
+    }
+    .del-confirm span { flex: 1; color: var(--gray-700); font-weight: 500; }
+    .del-confirm button {
+      border: none; cursor: pointer; font-family: inherit;
+      font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px;
+    }
+    .del-yes { background: var(--red); color: #fff; }
+    .del-yes:hover { background: #c23028; }
+    .del-no  { background: none; color: var(--gray-500); }
+    .del-no:hover { background: var(--gray-100); }
+
+    /* ── Modal ────────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.3);
+      z-index: 300; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: #fff; border-radius: 16px; padding: 28px;
+      width: 500px; max-width: calc(100vw - 32px);
+      box-shadow: 0 24px 64px rgba(0,0,0,.18);
+      transform: translateY(10px) scale(.98); transition: transform .2s;
+    }
+    .overlay.open .modal { transform: translateY(0) scale(1); }
+
+    .modal-heading { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+    .fg { margin-bottom: 14px; }
+    .fg label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
+    .hint { font-weight: 400; color: var(--gray-400); }
+
+    input[type="text"], input[type="url"], input[type="date"], textarea {
+      width: 100%; border: 1.5px solid var(--gray-200);
+      border-radius: 8px; padding: 9px 12px;
+      font-size: 14px; font-family: inherit;
+      color: var(--gray-900); background: #fff; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, textarea:focus {
+      border-color: var(--red); box-shadow: 0 0 0 3px rgba(219,64,53,.1);
+    }
+    input.error { border-color: var(--red) !important; }
+    textarea { resize: vertical; min-height: 72px; }
+
+    /* Date preset pills */
+    .date-presets { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .dp {
+      padding: 5px 13px;
+      border: 1.5px solid var(--gray-200); border-radius: 100px;
+      font-size: 12px; font-weight: 500; font-family: inherit;
+      background: #fff; color: var(--gray-700); cursor: pointer;
+      transition: all .15s;
+    }
+    .dp:hover { border-color: var(--red); color: var(--red); }
+    .dp.active { background: var(--red); border-color: var(--red); color: #fff; }
+    .dp.dp-triage.active { background: var(--amber); border-color: var(--amber); }
+
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .btn-cancel {
+      background: none; border: 1.5px solid var(--gray-200); color: var(--gray-700);
+      padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;
+      cursor: pointer; font-family: inherit; transition: background .15s;
+    }
+    .btn-cancel:hover { background: var(--gray-100); }
+    .btn-save {
+      background: var(--red); color: #fff; border: none;
+      padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: background .15s;
+    }
+    .btn-save:hover { background: #c23028; }
+
+    /* ── Toast ────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--gray-900); color: #fff;
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+      z-index: 400; white-space: nowrap; opacity: 0;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast-undo {
+      background: rgba(255,255,255,.15); color: #fff; border: none;
+      border-radius: 5px; padding: 3px 10px;
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .toast-undo:hover { background: rgba(255,255,255,.25); }
+    .toast-kbd { font-size: 11px; color: rgba(255,255,255,.4); }
+
+    /* ── Scrollbar ────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+    </div>
+    <div class="brand">
+      <h1 id="appName" contenteditable="true" spellcheck="false"
+          onblur="saveAppName()"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+          title="Click to rename">TaskFlow</h1>
+      <div class="sub" id="dateDisplay"></div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="btn-dev" id="devBtn" onclick="toggleDevMode()">🧪 Dev</button>
+    <button class="btn-add" onclick="openModal()">
+      <svg viewBox="0 0 14 14" fill="none" width="12" height="12">
+        <path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      Add Task
+    </button>
+  </div>
+</header>
+
+<!-- ── Dev bar ────────────────────────────────────────── -->
+<div class="dev-bar" id="devBar">
+  <strong>🧪 Simulate date:</strong>
+  <input type="date" id="devDateInput" onchange="applyDevDate(this.value)" />
+  <button class="btn-dev-reset" onclick="resetDevDate()">Reset to today</button>
+  <span id="devSimLabel"></span>
+</div>
+
+<!-- ── Grid ───────────────────────────────────────────── -->
+<main class="grid">
+
+  <!-- Due Soon ── col 1, row 1 -->
+  <section class="panel panel-due-soon" data-drop="due-soon">
+    <div class="panel-header">
+      <div class="panel-title">
+        Due Soon
+        <span class="panel-sub">Today &amp; Tomorrow</span>
+      </div>
+      <div class="header-right-group">
+        <span class="badge" id="badge-due-soon">0</span>
+        <button class="btn-plus" onclick="quickAdd('due-soon')" title="Add task">+</button>
+      </div>
+    </div>
+    <!-- Overdue subsection (hidden when empty) -->
+    <div id="overdueBox" style="display:none">
+      <div class="overdue-box">
+        <div class="overdue-label">⚠ Overdue</div>
+        <div class="task-list" id="list-overdue"></div>
+      </div>
+    </div>
+    <div class="task-list" id="list-due-soon"></div>
+  </section>
+
+  <!-- Upcoming ── col 2, row 1 -->
+  <section class="panel panel-upcoming" data-drop="upcoming">
+    <div class="panel-header">
+      <div class="panel-title">
+        Upcoming
+        <span class="panel-sub">2 – 5 Days</span>
+      </div>
+      <div class="header-right-group">
+        <span class="badge" id="badge-upcoming">0</span>
+        <button class="btn-plus" onclick="quickAdd('upcoming')" title="Add task">+</button>
+      </div>
+    </div>
+    <div class="task-list" id="list-upcoming"></div>
+  </section>
+
+  <!-- Future ── col 3, rows 1–2 (collapsible) -->
+  <section class="panel panel-future" data-drop="future">
+    <div class="panel-header clickable" onclick="toggleCollapse('future')">
+      <div class="panel-title">
+        <span class="chevron" id="chev-future">▾</span>
+        Future
+        <span class="panel-sub">1+ Weeks</span>
+      </div>
+      <div class="header-right-group">
+        <span class="badge" id="badge-future">0</span>
+        <button class="btn-plus" onclick="event.stopPropagation(); quickAdd('future')" title="Add task">+</button>
+      </div>
+    </div>
+    <div class="collapse-body" id="body-future">
+      <div class="future-group" id="grp-f1w" data-drop="f1w">
+        <div class="future-group-label">1 Week Out</div>
+        <div class="task-list" id="list-f1w"></div>
+      </div>
+      <div class="future-group" id="grp-f2w" data-drop="f2w">
+        <div class="future-group-label">2 Weeks Out</div>
+        <div class="task-list" id="list-f2w"></div>
+      </div>
+      <div class="future-group" id="grp-f1m" data-drop="f1m">
+        <div class="future-group-label">1+ Month</div>
+        <div class="task-list" id="list-f1m"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Triage ── cols 1–2, row 2 -->
+  <section class="panel panel-triage" data-drop="triage">
+    <div class="panel-header">
+      <div class="panel-title">
+        Triage
+        <span class="panel-sub">Needs a due date</span>
+      </div>
+      <div class="header-right-group">
+        <span class="badge" id="badge-triage">0</span>
+        <button class="btn-plus" onclick="quickAdd('triage')" title="Add task">+</button>
+      </div>
+    </div>
+    <div class="task-list-wrap" id="list-triage"></div>
+  </section>
+
+  <!-- Completed ── all 3 cols, row 3 (collapsible) -->
+  <section class="panel panel-done">
+    <div class="panel-header clickable" onclick="toggleCollapse('done')">
+      <div class="panel-title">
+        <span class="chevron" id="chev-done">▾</span>
+        Completed
+      </div>
+      <span class="badge" id="badge-done">0</span>
+    </div>
+    <div class="collapse-body" id="body-done">
+      <div class="task-list-wrap" id="list-done"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── Modal ──────────────────────────────────────────── -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-heading" id="modalHeading">Add New Task</div>
+
+    <div class="fg">
+      <label for="fTitle">Task name <span class="hint">(required)</span></label>
+      <input type="text" id="fTitle" placeholder="e.g. Review project proposal" autocomplete="off" />
+    </div>
+
+    <div class="fg">
+      <label for="fDesc">Description</label>
+      <textarea id="fDesc" placeholder="Add notes, context, or details…"></textarea>
+    </div>
+
+    <div class="fg">
+      <label>Due date</label>
+      <div class="date-presets">
+        <button type="button" class="dp"          data-pkey="ds"  onclick="setPreset(0)">Due Soon</button>
+        <button type="button" class="dp"          data-pkey="up"  onclick="setPreset(3)">Upcoming</button>
+        <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
+        <button type="button" class="dp dp-triage" data-pkey="tr" onclick="setPreset(null)">Triage</button>
+      </div>
+      <input type="date" id="fDue" oninput="clearPresets()" />
+    </div>
+
+    <div class="fg">
+      <label for="fLink">Link <span class="hint">(optional)</span></label>
+      <input type="url" id="fLink" placeholder="https://…" autocomplete="off" />
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="btnSave" onclick="saveTask()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────── -->
+<div class="toast" id="toast">
+  ✓ Task completed
+  <button class="toast-undo" onclick="undoLast()">Undo</button>
+  <span class="toast-kbd">⌘Z</span>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let tasks      = JSON.parse(localStorage.getItem('taskflow_v3') || '[]');
+let collapsed  = JSON.parse(localStorage.getItem('tf_collapse')  || '{"future":false,"done":true}');
+let devDateStr = localStorage.getItem('tf_devdate') || null;
+let devModeOn  = !!devDateStr;
+
+let editingId    = null;
+let delConfirmId = null;
+let draggingId   = null;
+let undoStack    = [];
+let redoStack    = [];
+let toastTimer   = null;
+
+const CELEBRATE = ['🎉','🎊','🎈','🥳'];
+
+// ══════════════════════════════════════════════════════════
+//  DATE HELPERS
+// ══════════════════════════════════════════════════════════
+function todayDate() {
+  if (devDateStr) {
+    const [y,m,d] = devDateStr.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  const d = new Date(); d.setHours(0,0,0,0); return d;
+}
+function addDays(n)  { const d = todayDate(); d.setDate(d.getDate() + n); return d; }
+function toISO(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function parseLocal(s) { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); }
+function daysDiff(s)   { return Math.round((parseLocal(s) - todayDate()) / 86400000); }
+function fmtDate(s)    { return parseLocal(s).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function fmtFull(d)    { return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+function fmtCompletedAt(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+
+// ══════════════════════════════════════════════════════════
+//  SECTION ASSIGNMENT
+// ══════════════════════════════════════════════════════════
+function sectionFor(t) {
+  if (t.completed) return 'done';
+  if (!t.due)      return 'triage';
+  const d = daysDiff(t.due);
+  if (d < 0)   return 'overdue';
+  if (d <= 1)  return 'due-soon';
+  if (d <= 5)  return 'upcoming';
+  if (d <= 13) return 'f1w';
+  if (d <= 30) return 'f2w';
+  return 'f1m';
+}
+
+// ══════════════════════════════════════════════════════════
+//  PERSIST
+// ══════════════════════════════════════════════════════════
+function save()         { localStorage.setItem('taskflow_v3', JSON.stringify(tasks)); }
+function saveCollapse() { localStorage.setItem('tf_collapse', JSON.stringify(collapsed)); }
+
+function saveAppName() {
+  const el = document.getElementById('appName');
+  const name = el.textContent.trim() || 'TaskFlow';
+  el.textContent = name;
+  localStorage.setItem('tf_appname', name);
+  document.title = name;
+}
+
+// ══════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════
+function render() {
+  document.getElementById('dateDisplay').textContent = fmtFull(todayDate());
+
+  // Group tasks
+  const G = { overdue:[], 'due-soon':[], upcoming:[], f1w:[], f2w:[], f1m:[], triage:[], done:[] };
+  tasks.forEach(t => { const s = sectionFor(t); if (G[s]) G[s].push(t); });
+
+  // Sort
+  const byDue = (a,b) => (a.due||'').localeCompare(b.due||'');
+  ['overdue','due-soon','upcoming','f1w','f2w','f1m'].forEach(k => G[k].sort(byDue));
+  G.done.sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
+
+  // Hide completed tasks older than 7 days
+  const _cutoff = new Date(todayDate());
+  _cutoff.setDate(_cutoff.getDate() - 7);
+  const _cutoffISO = _cutoff.toISOString().slice(0,10);
+  const _doneTotal = G.done.length;
+  G.done = G.done.filter(t => !t.completedAt || t.completedAt.slice(0,10) >= _cutoffISO);
+
+  // Fill lists
+  fill('list-overdue',  G.overdue,       false);
+  fill('list-due-soon', G['due-soon'],   false);
+  fill('list-upcoming', G.upcoming,      false);
+  fill('list-f1w',      G.f1w,           false);
+  fill('list-f2w',      G.f2w,           false);
+  fill('list-f1m',      G.f1m,           false);
+  fill('list-triage',   G.triage,        true);
+  fill('list-done',     G.done,          true);
+
+  // Overdue box
+  document.getElementById('overdueBox').style.display = G.overdue.length ? '' : 'none';
+
+  // Future sub-groups
+  ['f1w','f2w','f1m'].forEach(k => {
+    const el = document.getElementById(`grp-${k}`);
+    if (el) el.style.display = G[k].length ? '' : 'none';
+  });
+
+  // Badges
+  document.getElementById('badge-due-soon').textContent = G.overdue.length + G['due-soon'].length;
+  document.getElementById('badge-upcoming').textContent = G.upcoming.length;
+  document.getElementById('badge-future').textContent   = G.f1w.length + G.f2w.length + G.f1m.length;
+  document.getElementById('badge-triage').textContent   = G.triage.length;
+  document.getElementById('badge-done').textContent     = G.done.length + (_doneTotal > G.done.length ? ` / ${_doneTotal}` : '');
+
+  // Dev label
+  if (devDateStr) {
+    document.getElementById('devSimLabel').textContent = `→ Viewing as: ${fmtFull(todayDate())}`;
+    document.getElementById('devDateInput').value = devDateStr;
+  } else {
+    document.getElementById('devSimLabel').textContent = '';
+  }
+
+  applyCollapse();
+}
+
+function fill(listId, arr, horizontal) {
+  const el = document.getElementById(listId);
+  if (!el) return;
+  el.innerHTML = '';
+  if (!arr.length) {
+    const m = document.createElement('div');
+    m.className = 'empty-msg';
+    m.textContent = 'Nothing here';
+    el.appendChild(m);
+  } else {
+    arr.forEach(t => el.appendChild(buildCard(t, horizontal)));
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BUILD CARD
+// ══════════════════════════════════════════════════════════
+function buildCard(task, compact) {
+  const diff    = task.due ? daysDiff(task.due) : null;
+  const overdue = diff !== null && diff < 0 && !task.completed;  // completed tasks are never "overdue"
+  const isDel   = delConfirmId === task.id;
+
+  const card = document.createElement('div');
+  card.className = `task-card${task.completed ? ' done' : ''}`;
+  card.dataset.taskId = task.id;
+
+  // All non-completed cards are draggable (regardless of compact layout)
+  if (!task.completed) {
+    card.draggable = true;
+    card.addEventListener('dragstart', e => {
+      draggingId = task.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', task.id);
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      draggingId = null;
+    });
+  }
+
+  // Due date
+  let dueHtml = '';
+  if (task.due) {
+    const lbl = overdue ? `Overdue · ${fmtDate(task.due)}` : fmtDate(task.due);
+    dueHtml = `<span class="card-due${overdue?' overdue':''}">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="opacity:.6">
+        <path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14
+                 c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z"/>
+      </svg>${lbl}</span>`;
+  }
+
+  // Link
+  let linkHtml = '';
+  if (task.link) {
+    linkHtml = `<a class="card-link" href="${esc(task.link)}" target="_blank" rel="noopener"
+      draggable="false" onclick="event.stopPropagation()">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="opacity:.7">
+        <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9
+                 H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1
+                 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+      </svg>Link</a>`;
+  }
+
+  // Completed timestamp
+  const doneHtml = (task.completed && task.completedAt)
+    ? `<div class="completed-at">Completed ${fmtCompletedAt(task.completedAt)}</div>`
+    : '';
+
+  // Actions / delete confirm
+  const actionsHtml = isDel ? '' : `
+    <div class="card-actions">
+      <button class="act-btn"     onclick="startEdit(event,'${task.id}')" title="Edit">✏️</button>
+      <button class="act-btn del" onclick="askDelete(event,'${task.id}')" title="Delete">🗑</button>
+    </div>`;
+
+  const delHtml = isDel ? `
+    <div class="del-confirm">
+      <span>Delete?</span>
+      <button class="del-no"  onclick="cancelDel(event)">No</button>
+      <button class="del-yes" onclick="doDel(event)">Yes</button>
+    </div>` : '';
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="check${task.completed?' checked':''}" onclick="toggle(event,'${task.id}')"></div>
+      <div class="card-body">
+        <div class="card-title">${esc(task.title)}</div>
+        ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ''}
+        ${doneHtml}
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="card-meta">${dueHtml}${linkHtml}</div>
+      ${actionsHtml}
+    </div>
+    ${delHtml}`;
+
+  return card;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ══════════════════════════════════════════════════════════
+//  COLLAPSE
+// ══════════════════════════════════════════════════════════
+function applyCollapse() {
+  ['future','done'].forEach(key => {
+    const body = document.getElementById(`body-${key}`);
+    const chev = document.getElementById(`chev-${key}`);
+    if (!body) return;
+    if (collapsed[key]) {
+      body.classList.add('closed');
+      chev.classList.add('closed');
+    } else {
+      body.classList.remove('closed');
+      chev.classList.remove('closed');
+    }
+  });
+}
+function toggleCollapse(key) {
+  collapsed[key] = !collapsed[key];
+  saveCollapse();
+  applyCollapse();
+}
+
+// ══════════════════════════════════════════════════════════
+//  TOGGLE COMPLETE  ← animation fix: animate BEFORE re-render
+// ══════════════════════════════════════════════════════════
+function toggle(e, id) {
+  e.stopPropagation();
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+
+  const wasCompleted = t.completed;
+  t.completed = !t.completed;
+  if (!wasCompleted) {
+    t.completedAt = new Date().toISOString();
+  } else {
+    delete t.completedAt;
+  }
+
+  undoStack.push({ taskId: id, prevCompleted: wasCompleted });
+  redoStack = [];
+  save();
+
+  if (!wasCompleted) {
+    // ── Animate the EXISTING card, then re-render after ──
+    const card = document.querySelector(`[data-task-id="${id}"]`);
+    if (card) {
+      card.classList.add('completing');
+
+      const em = document.createElement('span');
+      em.className = 'cel-emoji';
+      em.textContent = CELEBRATE[Math.floor(Math.random() * CELEBRATE.length)];
+      card.appendChild(em);
+
+      // Re-render after animation (600ms gives strikeSlide + emojiBurst time to play)
+      setTimeout(() => render(), 620);
+    } else {
+      render();
+    }
+    showToast();
+  } else {
+    render();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  UNDO / REDO
+// ══════════════════════════════════════════════════════════
+function undoLast() {
+  if (!undoStack.length) return;
+  const { taskId, prevCompleted } = undoStack.pop();
+  const t = tasks.find(t => t.id === taskId);
+  if (t) {
+    redoStack.push({ taskId, prevCompleted: t.completed });
+    t.completed = prevCompleted;
+    if (!prevCompleted) delete t.completedAt;
+    save(); render();
+  }
+  hideToast();
+}
+function redoLast() {
+  if (!redoStack.length) return;
+  const { taskId, prevCompleted } = redoStack.pop();
+  const t = tasks.find(t => t.id === taskId);
+  if (t) {
+    undoStack.push({ taskId, prevCompleted: t.completed });
+    t.completed = prevCompleted;
+    if (prevCompleted) t.completedAt = new Date().toISOString();
+    else delete t.completedAt;
+    save(); render();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════════════════════════
+function askDelete(e, id) { e.stopPropagation(); delConfirmId = id; render(); }
+function cancelDel(e)     { e.stopPropagation(); delConfirmId = null; render(); }
+function doDel(e) {
+  e.stopPropagation();
+  tasks = tasks.filter(t => t.id !== delConfirmId);
+  delConfirmId = null; save(); render();
+}
+
+// ══════════════════════════════════════════════════════════
+//  EDIT / SAVE
+// ══════════════════════════════════════════════════════════
+function startEdit(e, id) {
+  e.stopPropagation();
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  editingId = id;
+  document.getElementById('fTitle').value = t.title;
+  document.getElementById('fDesc').value  = t.description || '';
+  document.getElementById('fDue').value   = t.due  || '';
+  document.getElementById('fLink').value  = t.link || '';
+  document.getElementById('modalHeading').textContent = 'Edit Task';
+  document.getElementById('btnSave').textContent = 'Save Changes';
+  clearPresets();
+  if (t.due) autoHighlightPreset(t.due);
+  openModal();
+}
+
+function saveTask() {
+  const el = document.getElementById('fTitle');
+  const title = el.value.trim();
+  if (!title) {
+    el.classList.add('error');
+    el.focus();
+    el.addEventListener('input', () => el.classList.remove('error'), { once: true });
+    return;
+  }
+  const description = document.getElementById('fDesc').value.trim();
+  const due  = document.getElementById('fDue').value;
+  let   link = document.getElementById('fLink').value.trim();
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+
+  if (editingId) {
+    const t = tasks.find(t => t.id === editingId);
+    if (t) Object.assign(t, { title, description, due, link });
+  } else {
+    tasks.push({ id:`t_${Date.now()}`, title, description, due, link, completed:false, createdAt:new Date().toISOString() });
+  }
+  save(); render(); closeModal();
+}
+
+// ══════════════════════════════════════════════════════════
+//  QUICK-ADD
+// ══════════════════════════════════════════════════════════
+const QUICK_DAYS = { 'due-soon':0, 'upcoming':3, 'future':7, 'triage':null };
+const QUICK_PKEY = { 'due-soon':'ds', 'upcoming':'up', 'future':'fu', 'triage':'tr' };
+
+function quickAdd(section) {
+  editingId = null;
+  ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
+  const days = QUICK_DAYS[section];
+  document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
+  document.getElementById('modalHeading').textContent = 'Add New Task';
+  document.getElementById('btnSave').textContent = 'Add Task';
+  clearPresets();
+  setActivePreset(QUICK_PKEY[section]);
+  openModal();
+}
+
+// ══════════════════════════════════════════════════════════
+//  DATE PRESETS
+// ══════════════════════════════════════════════════════════
+function setPreset(days) {
+  document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
+  const key = days === null ? 'tr' : days === 0 ? 'ds' : days === 3 ? 'up' : 'fu';
+  setActivePreset(key);
+}
+function setActivePreset(key) {
+  document.querySelectorAll('.dp').forEach(b => b.classList.toggle('active', b.dataset.pkey === key));
+}
+function clearPresets() {
+  document.querySelectorAll('.dp').forEach(b => b.classList.remove('active'));
+}
+function autoHighlightPreset(dateStr) {
+  const d = daysDiff(dateStr);
+  if (d <= 1)      setActivePreset('ds');
+  else if (d <= 5) setActivePreset('up');
+  else if (d <= 13) setActivePreset('fu');
+}
+
+// ══════════════════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════════════════
+function openModal() {
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('fTitle').focus(), 60);
+}
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  editingId = null;
+  ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fDue').value = '';
+  document.getElementById('fTitle').classList.remove('error');
+  document.getElementById('modalHeading').textContent = 'Add New Task';
+  document.getElementById('btnSave').textContent = 'Add Task';
+  clearPresets();
+}
+function overlayClick(e) { if (e.target.id === 'overlay') closeModal(); }
+
+// ══════════════════════════════════════════════════════════
+//  DRAG AND DROP
+// ══════════════════════════════════════════════════════════
+const DROP_DATE = {
+  'due-soon': () => toISO(todayDate()),
+  'upcoming': () => toISO(addDays(3)),
+  'future':   () => toISO(addDays(7)),   // fallback if dropped on panel header
+  'f1w':      () => toISO(addDays(7)),
+  'f2w':      () => toISO(addDays(14)),
+  'f1m':      () => toISO(addDays(31)),
+  'triage':   () => '',
+};
+
+function initDropZone(el, key, stopProp) {
+  el.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (stopProp) e.stopPropagation();   // sub-groups: prevent parent panel also highlighting
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', e => {
+    if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over');
+  });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    if (stopProp) e.stopPropagation();
+    el.classList.remove('drag-over');
+    if (!draggingId || !DROP_DATE[key]) return;
+    const t = tasks.find(t => t.id === draggingId);
+    if (t) { t.due = DROP_DATE[key](); draggingId = null; save(); render(); }
+  });
+}
+
+// Wire up top-level panel drop zones
+document.querySelectorAll('.panel[data-drop]').forEach(panel => {
+  initDropZone(panel, panel.dataset.drop, false);
+});
+
+// Wire up Future sub-group drop zones (stopProp so parent panel doesn't also fire)
+document.querySelectorAll('.future-group[data-drop]').forEach(grp => {
+  initDropZone(grp, grp.dataset.drop, true);
+});
+
+// ══════════════════════════════════════════════════════════
+//  DEV MODE
+// ══════════════════════════════════════════════════════════
+function toggleDevMode() {
+  devModeOn = !devModeOn;
+  document.getElementById('devBar').classList.toggle('show', devModeOn);
+  document.getElementById('devBtn').classList.toggle('active', devModeOn);
+  if (!devModeOn) resetDevDate();
+  else document.getElementById('devDateInput').value = devDateStr || toISO(new Date());
+}
+function applyDevDate(val) {
+  devDateStr = val || null;
+  if (devDateStr) localStorage.setItem('tf_devdate', devDateStr);
+  else localStorage.removeItem('tf_devdate');
+  render();
+}
+function resetDevDate() {
+  devDateStr = null;
+  localStorage.removeItem('tf_devdate');
+  document.getElementById('devDateInput').value = '';
+  document.getElementById('devSimLabel').textContent = '';
+  render();
+}
+
+// ══════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════
+function showToast() {
+  clearTimeout(toastTimer);
+  document.getElementById('toast').classList.add('show');
+  toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  document.getElementById('toast').classList.remove('show');
+}
+
+// ══════════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const inField = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
+  if (e.key === 'Escape') { closeModal(); return; }
+  if (e.key === 'Enter' && document.activeElement.id === 'fTitle') { e.preventDefault(); saveTask(); return; }
+  if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); openModal(); return; }
+  if (!inField) {
+    if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); undoLast(); return; }
+    if ((e.metaKey||e.ctrlKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) { e.preventDefault(); redoLast(); return; }
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+if (devDateStr) {
+  devModeOn = true;
+  document.getElementById('devBar').classList.add('show');
+  document.getElementById('devBtn').classList.add('active');
+}
+const _savedName = localStorage.getItem('tf_appname');
+if (_savedName) {
+  document.getElementById('appName').textContent = _savedName;
+  document.title = _savedName;
+}
+render();
+</script>
+</body>
+</html>

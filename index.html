@@ -139,11 +139,20 @@
       background: #f0f9ff;
     }
 
-    .panel-due-soon { grid-area: due-soon; }
-    .panel-upcoming { grid-area: upcoming; }
-    .panel-future   { grid-area: future;   }
-    .panel-unscheduled { grid-area: unscheduled; }
-    .panel-done     { grid-area: done;     }
+    .panel-due-soon { grid-area: due-soon; border-top: 3px solid var(--red); }
+    .panel-due-soon .panel-header { background: #fff8f8; }
+
+    .panel-upcoming { grid-area: upcoming; border-top: 3px solid var(--amber); }
+    .panel-upcoming .panel-header { background: #fffdf0; }
+
+    .panel-future   { grid-area: future;   border-top: 3px solid var(--blue); }
+    .panel-future .panel-header { background: #f0f7ff; }
+
+    .panel-unscheduled { grid-area: unscheduled; border-top: 3px solid var(--gray-300); }
+    .panel-unscheduled .panel-header { background: var(--gray-50); }
+
+    .panel-done     { grid-area: done;     border-top: 3px solid #10b981; }
+    .panel-done .panel-header { background: #f0fdf4; }
 
     /* ── Panel header ─────────────────────────────────── */
     .panel-header {
@@ -177,12 +186,12 @@
 
     .btn-plus {
       width: 26px; height: 26px;
-      border: 1.5px solid var(--gray-200); border-radius: 6px;
-      background: none; color: var(--gray-400); font-size: 16px;
+      border: 1.5px solid rgba(219,64,53,.25); border-radius: 6px;
+      background: rgba(219,64,53,.06); color: rgba(219,64,53,.55); font-size: 16px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       line-height: 1; transition: all .15s;
     }
-    .btn-plus:hover { background: var(--gray-100); color: var(--gray-700); border-color: var(--gray-300); }
+    .btn-plus:hover { background: rgba(219,64,53,.12); color: var(--red); border-color: rgba(219,64,53,.45); }
 
     /* ── Collapse body ────────────────────────────────── */
     .collapse-body {
@@ -538,6 +547,15 @@
 
       /* Modal full-width on small screens */
       .modal { padding: 20px 16px; border-radius: 12px; }
+
+      /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+      input[type="text"], input[type="url"], input[type="date"],
+      input[type="email"], input[type="password"], textarea {
+        font-size: 16px;
+      }
+
+      /* Prevent date picker from overflowing modal */
+      input[type="date"] { max-width: 100%; box-sizing: border-box; }
     }
   </style>
 </head>

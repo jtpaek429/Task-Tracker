@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TaskFlow</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -69,6 +70,22 @@
       transition: background .15s;
     }
     .btn-add:hover { background: #c23028; }
+
+    /* ── User area ────────────────────────────────────── */
+    .user-area {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 10px; border-radius: 8px;
+      border: 1.5px solid var(--gray-200);
+      background: var(--gray-50);
+    }
+    .user-email { font-size: 12px; color: var(--gray-500); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-signout {
+      font-size: 12px; padding: 3px 8px;
+      border: 1.5px solid var(--gray-200); border-radius: 5px;
+      background: #fff; color: var(--gray-500);
+      cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    .btn-signout:hover { background: #fee2e2; border-color: #fecaca; color: var(--red); }
 
     /* ── Dev bar ──────────────────────────────────────── */
     .dev-bar {
@@ -240,18 +257,12 @@
     }
 
     /* ── ★ COMPLETION ANIMATION ★ ────────────────────── */
-    /*
-      FIX: We animate the EXISTING card (before re-render).
-      .completing overrides .done's opacity so the card stays
-      visible and the strikethrough sweeps in cleanly.
-    */
     .task-card.completing {
       opacity: 1 !important;
       animation: cardFlash .5s ease forwards;
       pointer-events: none;
     }
     .task-card.completing .card-title {
-      /* text-decoration is already 'none' on the pre-complete card */
       animation: strikeSlide .38s ease forwards;
     }
     .task-card.completing .check {
@@ -389,7 +400,8 @@
     .fg label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
     .hint { font-weight: 400; color: var(--gray-400); }
 
-    input[type="text"], input[type="url"], input[type="date"], textarea {
+    input[type="text"], input[type="url"], input[type="date"],
+    input[type="email"], input[type="password"], textarea {
       width: 100%; border: 1.5px solid var(--gray-200);
       border-radius: 8px; padding: 9px 12px;
       font-size: 14px; font-family: inherit;
@@ -428,6 +440,37 @@
       cursor: pointer; font-family: inherit; transition: background .15s;
     }
     .btn-save:hover { background: #c23028; }
+    .btn-save:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Auth modal extras ────────────────────────────── */
+    .auth-tabs {
+      display: flex; gap: 0; margin-bottom: 20px;
+      border: 1.5px solid var(--gray-200); border-radius: 8px; overflow: hidden;
+    }
+    .auth-tab {
+      flex: 1; padding: 8px; font-size: 14px; font-weight: 500;
+      font-family: inherit; border: none; background: #fff;
+      color: var(--gray-500); cursor: pointer; transition: all .15s;
+    }
+    .auth-tab.active { background: var(--red); color: #fff; }
+    .auth-tab:not(.active):hover { background: var(--gray-100); }
+
+    .auth-message {
+      font-size: 13px; padding: 10px 12px; border-radius: 8px;
+      margin-bottom: 14px; display: none;
+    }
+    .auth-message.error   { background: #fee2e2; color: #991b1b; display: block; }
+    .auth-message.success { background: #dcfce7; color: #166534; display: block; }
+
+    .auth-logo { text-align: center; margin-bottom: 20px; }
+    .auth-logo .big-logo {
+      width: 48px; height: 48px; background: var(--red);
+      border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+    }
+    .auth-logo .big-logo svg { width: 24px; height: 24px; fill: #fff; }
+    .auth-logo h2 { font-size: 20px; font-weight: 700; }
+    .auth-logo p  { font-size: 13px; color: var(--gray-400); margin-top: 4px; }
 
     /* ── Toast ────────────────────────────────────────── */
     .toast {
@@ -474,6 +517,10 @@
   </div>
   <div class="header-right">
     <button class="btn-dev" id="devBtn" onclick="toggleDevMode()">🧪 Dev</button>
+    <div class="user-area" id="userArea" style="display:none">
+      <span class="user-email" id="userEmailDisplay"></span>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
     <button class="btn-add" onclick="openModal()">
       <svg viewBox="0 0 14 14" fill="none" width="12" height="12">
         <path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
@@ -591,7 +638,42 @@
 
 </main>
 
-<!-- ── Modal ──────────────────────────────────────────── -->
+<!-- ── Auth overlay ───────────────────────────────────── -->
+<div class="overlay" id="authOverlay">
+  <div class="modal" style="width:400px">
+    <div class="auth-logo">
+      <div class="big-logo">
+        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      </div>
+      <h2>TaskFlow</h2>
+      <p>Sign in to sync your tasks across devices</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabSignin" onclick="switchAuthTab('signin')">Sign In</button>
+      <button class="auth-tab"        id="tabSignup" onclick="switchAuthTab('signup')">Sign Up</button>
+    </div>
+
+    <div class="auth-message" id="authMessage"></div>
+
+    <div class="fg">
+      <label for="authEmail">Email</label>
+      <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email"
+             onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()" />
+    </div>
+    <div class="fg">
+      <label for="authPassword">Password</label>
+      <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')submitAuth()" />
+    </div>
+
+    <div class="modal-actions" style="justify-content:stretch">
+      <button class="btn-save" id="authSubmitBtn" onclick="submitAuth()" style="width:100%">Sign In</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Task modal ─────────────────────────────────────── -->
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
   <div class="modal">
     <div class="modal-heading" id="modalHeading">Add New Task</div>
@@ -638,12 +720,27 @@
 
 <script>
 // ══════════════════════════════════════════════════════════
+//  SUPABASE CONFIG
+//  Replace these two values with your project's credentials.
+//  Find them at: supabase.com → your project → Settings → API
+// ══════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://vddheuudimyvnbgtvvip.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkZGhldXVkaW15dm5iZ3R2dmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA4ODEsImV4cCI6MjA5MjI4Njg4MX0.C4ylfjY8xOvk_6vL2NtWfQ3V423kI6LeO1ONvexIC6E';
+
+const sb = (SUPABASE_URL !== 'YOUR_SUPABASE_URL')
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+// ══════════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════════
 let tasks      = JSON.parse(localStorage.getItem('taskflow_v3') || '[]');
 let collapsed  = JSON.parse(localStorage.getItem('tf_collapse')  || '{"future":false,"done":true}');
 let devDateStr = localStorage.getItem('tf_devdate') || null;
 let devModeOn  = !!devDateStr;
+
+let currentUser  = null;
+let authTab      = 'signin';
 
 let editingId    = null;
 let delConfirmId = null;
@@ -681,6 +778,150 @@ function fmtCompletedAt(iso) {
 }
 
 // ══════════════════════════════════════════════════════════
+//  SUPABASE DB HELPERS
+// ══════════════════════════════════════════════════════════
+function taskToRow(t) {
+  return {
+    id:           t.id,
+    user_id:      currentUser.id,
+    title:        t.title,
+    description:  t.description || null,
+    due:          t.due || null,
+    link:         t.link || null,
+    completed:    t.completed,
+    completed_at: t.completedAt || null,
+    created_at:   t.createdAt,
+  };
+}
+
+function rowToTask(r) {
+  return {
+    id:          r.id,
+    title:       r.title,
+    description: r.description || '',
+    due:         r.due || '',
+    link:        r.link || '',
+    completed:   r.completed,
+    completedAt: r.completed_at || undefined,
+    createdAt:   r.created_at,
+  };
+}
+
+async function dbUpsert(task) {
+  if (!sb || !currentUser) return;
+  const { error } = await sb.from('tasks').upsert(taskToRow(task));
+  if (error) console.error('Supabase upsert error:', error.message);
+}
+
+async function dbDelete(id) {
+  if (!sb || !currentUser) return;
+  const { error } = await sb.from('tasks').delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) console.error('Supabase delete error:', error.message);
+}
+
+async function loadTasksFromDB() {
+  if (!sb || !currentUser) return;
+  const { data, error } = await sb
+    .from('tasks')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: true });
+  if (error) { console.error('Supabase load error:', error.message); return; }
+  tasks = data.map(rowToTask);
+  localStorage.setItem('taskflow_v3', JSON.stringify(tasks));
+  render();
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════════
+async function initAuth() {
+  if (!sb) {
+    // Supabase not configured — run in local-only mode
+    render();
+    return;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    onSignedIn(session.user);
+  } else {
+    document.getElementById('authOverlay').classList.add('open');
+  }
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      onSignedIn(session.user);
+    } else {
+      onSignedOut();
+    }
+  });
+}
+
+function onSignedIn(user) {
+  currentUser = user;
+  document.getElementById('authOverlay').classList.remove('open');
+  document.getElementById('userArea').style.display = 'flex';
+  document.getElementById('userEmailDisplay').textContent = user.email;
+  loadTasksFromDB();
+}
+
+function onSignedOut() {
+  currentUser = null;
+  tasks = [];
+  localStorage.removeItem('taskflow_v3');
+  document.getElementById('userArea').style.display = 'none';
+  document.getElementById('authOverlay').classList.add('open');
+  render();
+}
+
+function switchAuthTab(tab) {
+  authTab = tab;
+  document.getElementById('tabSignin').classList.toggle('active', tab === 'signin');
+  document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
+  document.getElementById('authSubmitBtn').textContent = tab === 'signin' ? 'Sign In' : 'Create Account';
+  setAuthMessage('', '');
+}
+
+function setAuthMessage(text, type) {
+  const el = document.getElementById('authMessage');
+  el.textContent = text;
+  el.className = 'auth-message' + (type ? ` ${type}` : '');
+}
+
+async function submitAuth() {
+  if (!sb) return;
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  if (!email || !password) { setAuthMessage('Please enter your email and password.', 'error'); return; }
+
+  const btn = document.getElementById('authSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Please wait…';
+  setAuthMessage('', '');
+
+  if (authTab === 'signin') {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { setAuthMessage(error.message, 'error'); }
+  } else {
+    const { error } = await sb.auth.signUp({ email, password });
+    if (error) {
+      setAuthMessage(error.message, 'error');
+    } else {
+      setAuthMessage('Check your email for a confirmation link, then sign in.', 'success');
+      switchAuthTab('signin');
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = authTab === 'signin' ? 'Sign In' : 'Create Account';
+}
+
+async function signOut() {
+  if (sb) await sb.auth.signOut();
+}
+
+// ══════════════════════════════════════════════════════════
 //  SECTION ASSIGNMENT
 // ══════════════════════════════════════════════════════════
 function sectionFor(t) {
@@ -696,7 +937,7 @@ function sectionFor(t) {
 }
 
 // ══════════════════════════════════════════════════════════
-//  PERSIST
+//  PERSIST (localStorage only — Supabase handled per-op)
 // ══════════════════════════════════════════════════════════
 function save()         { localStorage.setItem('taskflow_v3', JSON.stringify(tasks)); }
 function saveCollapse() { localStorage.setItem('tf_collapse', JSON.stringify(collapsed)); }
@@ -787,14 +1028,13 @@ function fill(listId, arr, horizontal) {
 // ══════════════════════════════════════════════════════════
 function buildCard(task, compact) {
   const diff    = task.due ? daysDiff(task.due) : null;
-  const overdue = diff !== null && diff < 0 && !task.completed;  // completed tasks are never "overdue"
+  const overdue = diff !== null && diff < 0 && !task.completed;
   const isDel   = delConfirmId === task.id;
 
   const card = document.createElement('div');
   card.className = `task-card${task.completed ? ' done' : ''}`;
   card.dataset.taskId = task.id;
 
-  // All non-completed cards are draggable (regardless of compact layout)
   if (!task.completed) {
     card.draggable = true;
     card.addEventListener('dragstart', e => {
@@ -810,7 +1050,6 @@ function buildCard(task, compact) {
     });
   }
 
-  // Due date
   let dueHtml = '';
   if (task.due) {
     const lbl = overdue ? `Overdue · ${fmtDate(task.due)}` : fmtDate(task.due);
@@ -821,7 +1060,6 @@ function buildCard(task, compact) {
       </svg>${lbl}</span>`;
   }
 
-  // Link
   let linkHtml = '';
   if (task.link) {
     linkHtml = `<a class="card-link" href="${esc(task.link)}" target="_blank" rel="noopener"
@@ -833,12 +1071,10 @@ function buildCard(task, compact) {
       </svg>Link</a>`;
   }
 
-  // Completed timestamp
   const doneHtml = (task.completed && task.completedAt)
     ? `<div class="completed-at">Completed ${fmtCompletedAt(task.completedAt)}</div>`
     : '';
 
-  // Actions / delete confirm
   const actionsHtml = isDel ? '' : `
     <div class="card-actions">
       <button class="act-btn"     onclick="startEdit(event,'${task.id}')" title="Edit">✏️</button>
@@ -896,7 +1132,7 @@ function toggleCollapse(key) {
 }
 
 // ══════════════════════════════════════════════════════════
-//  TOGGLE COMPLETE  ← animation fix: animate BEFORE re-render
+//  TOGGLE COMPLETE
 // ══════════════════════════════════════════════════════════
 function toggle(e, id) {
   e.stopPropagation();
@@ -914,19 +1150,16 @@ function toggle(e, id) {
   undoStack.push({ taskId: id, prevCompleted: wasCompleted });
   redoStack = [];
   save();
+  dbUpsert(t);
 
   if (!wasCompleted) {
-    // ── Animate the EXISTING card, then re-render after ──
     const card = document.querySelector(`[data-task-id="${id}"]`);
     if (card) {
       card.classList.add('completing');
-
       const em = document.createElement('span');
       em.className = 'cel-emoji';
       em.textContent = CELEBRATE[Math.floor(Math.random() * CELEBRATE.length)];
       card.appendChild(em);
-
-      // Re-render after animation (600ms gives strikeSlide + emojiBurst time to play)
       setTimeout(() => render(), 620);
     } else {
       render();
@@ -948,7 +1181,7 @@ function undoLast() {
     redoStack.push({ taskId, prevCompleted: t.completed });
     t.completed = prevCompleted;
     if (!prevCompleted) delete t.completedAt;
-    save(); render();
+    save(); dbUpsert(t); render();
   }
   hideToast();
 }
@@ -961,7 +1194,7 @@ function redoLast() {
     t.completed = prevCompleted;
     if (prevCompleted) t.completedAt = new Date().toISOString();
     else delete t.completedAt;
-    save(); render();
+    save(); dbUpsert(t); render();
   }
 }
 
@@ -972,8 +1205,12 @@ function askDelete(e, id) { e.stopPropagation(); delConfirmId = id; render(); }
 function cancelDel(e)     { e.stopPropagation(); delConfirmId = null; render(); }
 function doDel(e) {
   e.stopPropagation();
-  tasks = tasks.filter(t => t.id !== delConfirmId);
-  delConfirmId = null; save(); render();
+  const id = delConfirmId;
+  tasks = tasks.filter(t => t.id !== id);
+  delConfirmId = null;
+  save();
+  dbDelete(id);
+  render();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1009,13 +1246,18 @@ function saveTask() {
   let   link = document.getElementById('fLink').value.trim();
   if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
 
+  let task;
   if (editingId) {
-    const t = tasks.find(t => t.id === editingId);
-    if (t) Object.assign(t, { title, description, due, link });
+    task = tasks.find(t => t.id === editingId);
+    if (task) Object.assign(task, { title, description, due, link });
   } else {
-    tasks.push({ id:`t_${Date.now()}`, title, description, due, link, completed:false, createdAt:new Date().toISOString() });
+    task = { id:`t_${Date.now()}`, title, description, due, link, completed:false, createdAt:new Date().toISOString() };
+    tasks.push(task);
   }
-  save(); render(); closeModal();
+  save();
+  if (task) dbUpsert(task);
+  render();
+  closeModal();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1082,7 +1324,7 @@ function overlayClick(e) { if (e.target.id === 'overlay') closeModal(); }
 const DROP_DATE = {
   'due-soon': () => toISO(todayDate()),
   'upcoming': () => toISO(addDays(3)),
-  'future':   () => toISO(addDays(7)),   // fallback if dropped on panel header
+  'future':   () => toISO(addDays(7)),
   'f1w':      () => toISO(addDays(7)),
   'f2w':      () => toISO(addDays(14)),
   'f1m':      () => toISO(addDays(31)),
@@ -1092,7 +1334,7 @@ const DROP_DATE = {
 function initDropZone(el, key, stopProp) {
   el.addEventListener('dragover', e => {
     e.preventDefault();
-    if (stopProp) e.stopPropagation();   // sub-groups: prevent parent panel also highlighting
+    if (stopProp) e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
     document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
     el.classList.add('drag-over');
@@ -1106,16 +1348,19 @@ function initDropZone(el, key, stopProp) {
     el.classList.remove('drag-over');
     if (!draggingId || !DROP_DATE[key]) return;
     const t = tasks.find(t => t.id === draggingId);
-    if (t) { t.due = DROP_DATE[key](); draggingId = null; save(); render(); }
+    if (t) {
+      t.due = DROP_DATE[key]();
+      draggingId = null;
+      save();
+      dbUpsert(t);
+      render();
+    }
   });
 }
 
-// Wire up top-level panel drop zones
 document.querySelectorAll('.panel[data-drop]').forEach(panel => {
   initDropZone(panel, panel.dataset.drop, false);
 });
-
-// Wire up Future sub-group drop zones (stopProp so parent panel doesn't also fire)
 document.querySelectorAll('.future-group[data-drop]').forEach(grp => {
   initDropZone(grp, grp.dataset.drop, true);
 });
@@ -1184,7 +1429,8 @@ if (_savedName) {
   document.getElementById('appName').textContent = _savedName;
   document.title = _savedName;
 }
-render();
+
+initAuth();
 </script>
 </body>
 </html>

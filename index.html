@@ -497,6 +497,48 @@
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 10px; }
+
+    /* ── Mobile ───────────────────────────────────────── */
+    @media (max-width: 700px) {
+      header { padding: 10px 16px; }
+      .user-email { display: none; }
+
+      .grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        grid-template-areas:
+          "due-soon"
+          "upcoming"
+          "future"
+          "unscheduled"
+          "done";
+        padding: 12px 12px 48px;
+        gap: 10px;
+      }
+
+      /* Larger tap targets for check circles */
+      .check {
+        width: 22px; height: 22px;
+        border-width: 2.5px;
+      }
+      .check.checked::after {
+        width: 9px; height: 5px;
+      }
+
+      /* Always show action buttons on touch */
+      .card-actions { opacity: 1; }
+      .act-btn { padding: 6px 8px; font-size: 14px; }
+
+      /* Bigger + buttons */
+      .btn-plus { width: 32px; height: 32px; font-size: 18px; }
+
+      /* Unscheduled & done wrap cards go full width on mobile */
+      .task-list-wrap .task-card { width: 100%; min-height: unset; }
+      .task-list-wrap { gap: 7px; }
+
+      /* Modal full-width on small screens */
+      .modal { padding: 20px 16px; border-radius: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -1041,7 +1083,8 @@ function buildCard(task, compact) {
   card.className = `task-card${task.completed ? ' done' : ''}`;
   card.dataset.taskId = task.id;
 
-  if (!task.completed) {
+  const isTouch = window.matchMedia('(hover: none)').matches;
+  if (!task.completed && !isTouch) {
     card.draggable = true;
     card.addEventListener('dragstart', e => {
       draggingId = task.id;

@@ -117,9 +117,9 @@
       grid-template-columns: 1fr 1fr 1fr;
       grid-template-rows: auto auto auto;
       grid-template-areas:
-        "due-soon  upcoming  future"
-        "triage    triage    future"
-        "done      done      done";
+        "due-soon      upcoming      future"
+        "unscheduled   unscheduled   unscheduled"
+        "done          done          done";
       gap: 16px;
       padding: 20px 24px 48px;
       align-items: start;
@@ -142,7 +142,7 @@
     .panel-due-soon { grid-area: due-soon; }
     .panel-upcoming { grid-area: upcoming; }
     .panel-future   { grid-area: future;   }
-    .panel-triage   { grid-area: triage;   }
+    .panel-unscheduled { grid-area: unscheduled; }
     .panel-done     { grid-area: done;     }
 
     /* ── Panel header ─────────────────────────────────── */
@@ -425,7 +425,7 @@
     }
     .dp:hover { border-color: var(--red); color: var(--red); }
     .dp.active { background: var(--red); border-color: var(--red); color: #fff; }
-    .dp.dp-triage.active { background: var(--amber); border-color: var(--amber); }
+    .dp.dp-unscheduled.active { background: var(--amber); border-color: var(--amber); }
 
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     .btn-cancel {
@@ -607,19 +607,22 @@
     </div>
   </section>
 
-  <!-- Triage ── cols 1–2, row 2 -->
-  <section class="panel panel-triage" data-drop="triage">
-    <div class="panel-header">
+  <!-- Unscheduled ── all 3 cols (collapsible, auto-collapses when empty) -->
+  <section class="panel panel-unscheduled" data-drop="unscheduled">
+    <div class="panel-header clickable" onclick="toggleCollapse('unscheduled')">
       <div class="panel-title">
-        Triage
-        <span class="panel-sub">Needs a due date</span>
+        <span class="chevron" id="chev-unscheduled">▾</span>
+        Unscheduled
+        <span class="panel-sub">No due date</span>
       </div>
       <div class="header-right-group">
-        <span class="badge" id="badge-triage">0</span>
-        <button class="btn-plus" onclick="quickAdd('triage')" title="Add task">+</button>
+        <span class="badge" id="badge-unscheduled">0</span>
+        <button class="btn-plus" onclick="event.stopPropagation(); quickAdd('unscheduled')" title="Add task">+</button>
       </div>
     </div>
-    <div class="task-list-wrap" id="list-triage"></div>
+    <div class="collapse-body" id="body-unscheduled">
+      <div class="task-list-wrap" id="list-unscheduled"></div>
+    </div>
   </section>
 
   <!-- Completed ── all 3 cols, row 3 (collapsible) -->
@@ -694,7 +697,7 @@
         <button type="button" class="dp"          data-pkey="ds"  onclick="setPreset(0)">Due Soon</button>
         <button type="button" class="dp"          data-pkey="up"  onclick="setPreset(3)">Upcoming</button>
         <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
-        <button type="button" class="dp dp-triage" data-pkey="tr" onclick="setPreset(null)">Triage</button>
+        <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Unscheduled</button>
       </div>
       <input type="date" id="fDue" oninput="clearPresets()" />
     </div>
@@ -735,7 +738,7 @@ const sb = (SUPABASE_URL !== 'YOUR_SUPABASE_URL')
 //  STATE
 // ══════════════════════════════════════════════════════════
 let tasks      = JSON.parse(localStorage.getItem('taskflow_v3') || '[]');
-let collapsed  = JSON.parse(localStorage.getItem('tf_collapse')  || '{"future":false,"done":true}');
+let collapsed  = JSON.parse(localStorage.getItem('tf_collapse')  || '{"future":false,"done":true,"unscheduled":true}');
 let devDateStr = localStorage.getItem('tf_devdate') || null;
 let devModeOn  = !!devDateStr;
 
@@ -926,7 +929,7 @@ async function signOut() {
 // ══════════════════════════════════════════════════════════
 function sectionFor(t) {
   if (t.completed) return 'done';
-  if (!t.due)      return 'triage';
+  if (!t.due)      return 'unscheduled';
   const d = daysDiff(t.due);
   if (d < 0)   return 'overdue';
   if (d <= 1)  return 'due-soon';
@@ -957,7 +960,7 @@ function render() {
   document.getElementById('dateDisplay').textContent = fmtFull(todayDate());
 
   // Group tasks
-  const G = { overdue:[], 'due-soon':[], upcoming:[], f1w:[], f2w:[], f1m:[], triage:[], done:[] };
+  const G = { overdue:[], 'due-soon':[], upcoming:[], f1w:[], f2w:[], f1m:[], unscheduled:[], done:[] };
   tasks.forEach(t => { const s = sectionFor(t); if (G[s]) G[s].push(t); });
 
   // Sort
@@ -979,8 +982,11 @@ function render() {
   fill('list-f1w',      G.f1w,           false);
   fill('list-f2w',      G.f2w,           false);
   fill('list-f1m',      G.f1m,           false);
-  fill('list-triage',   G.triage,        true);
-  fill('list-done',     G.done,          true);
+  fill('list-unscheduled', G.unscheduled, true);
+  fill('list-done',        G.done,       true);
+
+  // Auto-collapse unscheduled when empty
+  if (G.unscheduled.length === 0) collapsed.unscheduled = true;
 
   // Overdue box
   document.getElementById('overdueBox').style.display = G.overdue.length ? '' : 'none';
@@ -995,7 +1001,7 @@ function render() {
   document.getElementById('badge-due-soon').textContent = G.overdue.length + G['due-soon'].length;
   document.getElementById('badge-upcoming').textContent = G.upcoming.length;
   document.getElementById('badge-future').textContent   = G.f1w.length + G.f2w.length + G.f1m.length;
-  document.getElementById('badge-triage').textContent   = G.triage.length;
+  document.getElementById('badge-unscheduled').textContent = G.unscheduled.length;
   document.getElementById('badge-done').textContent     = G.done.length + (_doneTotal > G.done.length ? ` / ${_doneTotal}` : '');
 
   // Dev label
@@ -1112,7 +1118,7 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s; re
 //  COLLAPSE
 // ══════════════════════════════════════════════════════════
 function applyCollapse() {
-  ['future','done'].forEach(key => {
+  ['future','done','unscheduled'].forEach(key => {
     const body = document.getElementById(`body-${key}`);
     const chev = document.getElementById(`chev-${key}`);
     if (!body) return;
@@ -1263,8 +1269,8 @@ function saveTask() {
 // ══════════════════════════════════════════════════════════
 //  QUICK-ADD
 // ══════════════════════════════════════════════════════════
-const QUICK_DAYS = { 'due-soon':0, 'upcoming':3, 'future':7, 'triage':null };
-const QUICK_PKEY = { 'due-soon':'ds', 'upcoming':'up', 'future':'fu', 'triage':'tr' };
+const QUICK_DAYS = { 'due-soon':0, 'upcoming':3, 'future':7, 'unscheduled':null };
+const QUICK_PKEY = { 'due-soon':'ds', 'upcoming':'up', 'future':'fu', 'unscheduled':'tr' };
 
 function quickAdd(section) {
   editingId = null;
@@ -1328,7 +1334,7 @@ const DROP_DATE = {
   'f1w':      () => toISO(addDays(7)),
   'f2w':      () => toISO(addDays(14)),
   'f1m':      () => toISO(addDays(31)),
-  'triage':   () => '',
+  'unscheduled': () => '',
 };
 
 function initDropZone(el, key, stopProp) {

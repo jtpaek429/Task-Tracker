@@ -399,6 +399,7 @@
       background: #fff; border-radius: 16px; padding: 28px;
       width: 500px; max-width: calc(100vw - 32px);
       box-shadow: 0 24px 64px rgba(0,0,0,.18);
+      overflow: hidden;
       transform: translateY(10px) scale(.98); transition: transform .2s;
     }
     .overlay.open .modal { transform: translateY(0) scale(1); }
@@ -433,8 +434,11 @@
       transition: all .15s;
     }
     .dp:hover { border-color: var(--red); color: var(--red); }
-    .dp.active { background: var(--red); border-color: var(--red); color: #fff; }
-    .dp.dp-unscheduled.active { background: var(--amber); border-color: var(--amber); }
+    .dp.active { color: #fff; }
+    .dp[data-pkey="ds"].active { background: var(--red);    border-color: var(--red); }
+    .dp[data-pkey="up"].active { background: var(--amber);  border-color: var(--amber); }
+    .dp[data-pkey="fu"].active { background: var(--blue);   border-color: var(--blue); }
+    .dp[data-pkey="tr"].active { background: var(--gray-400); border-color: var(--gray-400); }
 
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     .btn-cancel {
@@ -595,6 +599,7 @@
   <strong>🧪 Simulate date:</strong>
   <input type="date" id="devDateInput" onchange="applyDevDate(this.value)" />
   <button class="btn-dev-reset" onclick="resetDevDate()">Reset to today</button>
+  <button class="btn-dev-reset" onclick="generateTestTasks()">＋ Generate 5 tasks</button>
   <span id="devSimLabel"></span>
 </div>
 
@@ -1435,6 +1440,22 @@ document.querySelectorAll('.future-group[data-drop]').forEach(grp => {
 // ══════════════════════════════════════════════════════════
 //  DEV MODE
 // ══════════════════════════════════════════════════════════
+function generateTestTasks() {
+  const samples = [
+    { title: 'Review Q2 roadmap doc',      due: toISO(addDays(-1)), },
+    { title: 'Reply to design feedback',   due: toISO(addDays(1)),  },
+    { title: 'Schedule team sync',         due: toISO(addDays(4)),  },
+    { title: 'Draft blog post outline',    due: toISO(addDays(10)), },
+    { title: 'Research competitor pricing', due: '',                },
+  ];
+  samples.forEach(s => {
+    const task = { id:`t_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, title: s.title, description: '', due: s.due, link: '', completed: false, createdAt: new Date().toISOString() };
+    tasks.push(task);
+    dbUpsert(task);
+  });
+  save(); render();
+}
+
 function toggleDevMode() {
   devModeOn = !devModeOn;
   document.getElementById('devBar').classList.toggle('show', devModeOn);

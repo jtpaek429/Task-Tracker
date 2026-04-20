@@ -337,6 +337,10 @@
       margin-top: 3px; line-height: 1.4;
       display: -webkit-box; -webkit-line-clamp: 2;
       -webkit-box-orient: vertical; overflow: hidden;
+      cursor: pointer;
+    }
+    .card-desc.expanded {
+      display: block; overflow: visible; -webkit-line-clamp: unset;
     }
     .completed-at { font-size: 10px; color: var(--gray-300); margin-top: 4px; }
 
@@ -511,9 +515,27 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 10px; }
 
+    /* ── Floating Add Task button (mobile only) ──────── */
+    .fab {
+      display: none;
+    }
+    @media (max-width: 700px) {
+      .fab {
+        display: flex; align-items: center; justify-content: center;
+        position: fixed; bottom: 24px; right: 20px; z-index: 250;
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--red); color: #fff; border: none;
+        font-size: 28px; line-height: 1;
+        box-shadow: 0 4px 16px rgba(219,64,53,.45);
+        cursor: pointer; transition: background .15s, transform .15s;
+      }
+      .fab:hover { background: #c23028; transform: scale(1.07); }
+    }
+
     /* ── Mobile ───────────────────────────────────────── */
     @media (max-width: 700px) {
       header { padding: 10px 16px; }
+      .btn-add { display: none; } /* replaced by FAB */
       .user-email { display: none; }
 
       .grid {
@@ -549,8 +571,16 @@
       .task-list-wrap .task-card { width: 100%; min-height: unset; }
       .task-list-wrap { gap: 7px; }
 
-      /* Modal full-width on small screens */
-      .modal { padding: 20px 16px; border-radius: 12px; }
+      /* Bottom sheet modal */
+      .overlay { align-items: flex-end; }
+      .modal {
+        width: 100%; max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 20px 16px 36px;
+        transform: translateY(100%);
+        max-height: 90vh; overflow-y: auto;
+      }
+      .overlay.open .modal { transform: translateY(0); }
 
       /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
       input[type="text"], input[type="url"], input[type="date"],
@@ -706,6 +736,9 @@
   </section>
 
 </main>
+
+<!-- ── Floating Add Task button (mobile) ─────────────── -->
+<button class="fab" onclick="openModal()" aria-label="Add task">+</button>
 
 <!-- ── Auth overlay ───────────────────────────────────── -->
 <div class="overlay" id="authOverlay">
@@ -1166,7 +1199,7 @@ function buildCard(task, compact) {
       <div class="check${task.completed?' checked':''}" onclick="toggle(event,'${task.id}')"></div>
       <div class="card-body">
         <div class="card-title">${esc(task.title)}</div>
-        ${task.description ? `<div class="card-desc">${esc(task.description)}</div>` : ''}
+        ${task.description ? `<div class="card-desc" onclick="toggleDesc(event)">${esc(task.description)}</div>` : ''}
         ${doneHtml}
       </div>
     </div>
@@ -1180,6 +1213,7 @@ function buildCard(task, compact) {
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function toggleDesc(e) { e.stopPropagation(); e.currentTarget.classList.toggle('expanded'); }
 
 // ══════════════════════════════════════════════════════════
 //  COLLAPSE

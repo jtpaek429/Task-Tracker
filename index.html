@@ -383,13 +383,7 @@
     }
     .card-due.overdue { color: var(--red); font-weight: 600; }
 
-    .card-link {
-      font-size: 11px; color: var(--blue);
-      text-decoration: none; display: flex; align-items: center; gap: 2px;
-    }
-    .card-link:hover { text-decoration: underline; }
-
-    .card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
     .task-card:hover .card-actions { opacity: 1; }
 
     .act-btn {
@@ -495,6 +489,16 @@
     .dp[data-pkey="up"].active { background: var(--amber);  border-color: var(--amber); }
     .dp[data-pkey="fu"].active { background: var(--blue);   border-color: var(--blue); }
     .dp[data-pkey="tr"].active { background: var(--gray-400); border-color: var(--gray-400); }
+
+    .date-input-wrap { position: relative; display: flex; align-items: center; }
+    .date-input-wrap input[type="text"] { padding-right: 36px; }
+    .btn-cal {
+      position: absolute; right: 8px;
+      background: none; border: none; padding: 0; cursor: pointer;
+      color: var(--gray-400); display: flex; align-items: center;
+      transition: color .15s;
+    }
+    .btn-cal:hover { color: var(--red); }
 
     .date-preview {
       font-size: 12px; color: var(--gray-500); margin-top: 5px;
@@ -917,14 +921,17 @@
         <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
         <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Unscheduled</button>
       </div>
-      <input type="text" id="fDueText" placeholder="e.g. today, next friday, apr 25…" autocomplete="off" oninput="onDueTextInput()" />
+      <div class="date-input-wrap">
+        <input type="text" id="fDueText" placeholder="e.g. today, next friday, apr 25…" autocomplete="off" oninput="onDueTextInput()" />
+        <button type="button" class="btn-cal" onclick="openCalPicker()" title="Pick from calendar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z"/>
+          </svg>
+        </button>
+        <input type="date" id="fDuePicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="onCalPick()" />
+      </div>
       <input type="hidden" id="fDue" />
       <div id="datePreview" class="date-preview"></div>
-    </div>
-
-    <div class="fg">
-      <label for="fLink">Link <span class="hint">(optional)</span></label>
-      <input type="url" id="fLink" placeholder="https://…" autocomplete="off" />
     </div>
 
     <div class="modal-actions">
@@ -1442,16 +1449,6 @@ function buildCard(task, compact) {
       </svg>${lbl}</span>`;
   }
 
-  let linkHtml = '';
-  if (task.link) {
-    linkHtml = `<a class="card-link" href="${esc(task.link)}" target="_blank" rel="noopener"
-      draggable="false" onclick="event.stopPropagation()">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="opacity:.7">
-        <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9
-                 H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1
-                 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
-      </svg>Link</a>`;
-  }
 
   const doneHtml = (task.completed && task.completedAt)
     ? `<div class="completed-at">Completed ${fmtCompletedAt(task.completedAt)}</div>`
@@ -1480,7 +1477,7 @@ function buildCard(task, compact) {
       </div>
     </div>
     <div class="card-footer">
-      <div class="card-meta">${dueHtml}${linkHtml}</div>
+      <div class="card-meta">${dueHtml}</div>
       ${actionsHtml}
     </div>
     ${delHtml}`;
@@ -1608,7 +1605,6 @@ function startEdit(e, id) {
   document.getElementById('fDesc').value  = t.description || '';
   document.getElementById('fDue').value     = t.due  || '';
   document.getElementById('fDueText').value = t.due ? fmtDate(t.due) : '';
-  document.getElementById('fLink').value    = t.link || '';
   document.getElementById('modalHeading').textContent = 'Edit Task';
   document.getElementById('btnSave').textContent = 'Save Changes';
   clearPresets();
@@ -1630,15 +1626,13 @@ function saveTask() {
   const description = document.getElementById('fDesc').value.trim();
   const due      = document.getElementById('fDue').value;
   const priority = getSelectedPriority();
-  let   link = document.getElementById('fLink').value.trim();
-  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
 
   let task;
   if (editingId) {
     task = tasks.find(t => t.id === editingId);
-    if (task) Object.assign(task, { title, description, due, link, priority });
+    if (task) Object.assign(task, { title, description, due, priority });
   } else {
-    task = { id:`t_${Date.now()}`, title, description, due, link, priority, completed:false, createdAt:new Date().toISOString() };
+    task = { id:`t_${Date.now()}`, title, description, due, priority, completed:false, createdAt:new Date().toISOString() };
     tasks.push(task);
   }
   save();
@@ -1655,7 +1649,7 @@ const QUICK_PKEY = { 'due-soon':'ds', 'upcoming':'up', 'future':'fu', 'unschedul
 
 function quickAdd(section) {
   editingId = null;
-  ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
+  ['fTitle','fDesc'].forEach(id => document.getElementById(id).value = '');
   const days = QUICK_DAYS[section];
   const iso = (days !== null) ? toISO(addDays(days)) : '';
   document.getElementById('fDue').value = iso;
@@ -1686,6 +1680,20 @@ function setActivePreset(key) {
 }
 function clearPresets() {
   document.querySelectorAll('.dp').forEach(b => b.classList.remove('active'));
+}
+function openCalPicker() {
+  const picker = document.getElementById('fDuePicker');
+  if (document.getElementById('fDue').value) picker.value = document.getElementById('fDue').value;
+  picker.showPicker?.() ?? picker.click();
+}
+function onCalPick() {
+  const iso = document.getElementById('fDuePicker').value;
+  if (!iso) return;
+  document.getElementById('fDue').value = iso;
+  document.getElementById('fDueText').value = fmtDate(iso);
+  clearPresets();
+  autoHighlightPreset(iso);
+  updateDatePreview(iso);
 }
 function onDueTextInput() {
   const raw = document.getElementById('fDueText').value;
@@ -1730,7 +1738,7 @@ function closeModal() {
   document.activeElement?.blur();
   document.getElementById('overlay').classList.remove('open');
   editingId = null;
-  ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
+  ['fTitle','fDesc'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fDue').value = '';
   document.getElementById('fDueText').value = '';
   updateDatePreview(null);

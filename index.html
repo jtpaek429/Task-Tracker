@@ -1062,9 +1062,19 @@ function parseNLDate(input) {
     const modifier = (m[1] || '').trim();
     const dow = NL_DAYS[m[2].substring(0,3)] ?? NL_DAYS[m[2]];
     if (dow !== undefined) {
-      let diff = dow - todayDate().getDay();
-      if (modifier === 'next') { if (diff <= 0) diff += 7; if (diff === 0) diff = 7; }
-      else { if (diff <= 0) diff += 7; }
+      const todayDow = todayDate().getDay();
+      let diff;
+      if (modifier === 'next') {
+        // Resolve to the target day within next calendar week (Mon–Sun)
+        const todayWd = todayDow === 0 ? 7 : todayDow;   // Mon=1…Sun=7
+        const targetWd = dow === 0 ? 7 : dow;
+        const daysToNextMon = (8 - todayWd) % 7 || 7;
+        diff = daysToNextMon + targetWd - 1;
+      } else {
+        // No modifier: next upcoming occurrence (never today)
+        diff = dow - todayDow;
+        if (diff <= 0) diff += 7;
+      }
       return toISO(addDays(diff));
     }
   }
@@ -1106,7 +1116,12 @@ function pickYear(mo, day) {
 function nlPreviewText(isoDate) {
   if (!isoDate) return '';
   const diff = daysDiff(isoDate);
-  const label = parseLocal(isoDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const d = parseLocal(isoDate);
+  const crossYear = d.getFullYear() !== todayDate().getFullYear();
+  const opts = crossYear
+    ? {weekday:'long', month:'long', day:'numeric', year:'numeric'}
+    : {weekday:'long', month:'long', day:'numeric'};
+  const label = d.toLocaleDateString('en-US', opts);
   if (diff === 0)  return `Today — ${label}`;
   if (diff === 1)  return `Tomorrow — ${label}`;
   if (diff === -1) return `Yesterday — ${label}`;

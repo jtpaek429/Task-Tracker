@@ -438,7 +438,8 @@
     }
     .dp:hover { border-color: var(--red); color: var(--red); }
     .dp.active { color: #fff; }
-    .dp[data-pkey="ds"].active { background: var(--red);    border-color: var(--red); }
+    .dp[data-pkey="td"].active { background: var(--red);    border-color: var(--red); }
+    .dp[data-pkey="tm"].active { background: var(--red);    border-color: var(--red); }
     .dp[data-pkey="up"].active { background: var(--amber);  border-color: var(--amber); }
     .dp[data-pkey="fu"].active { background: var(--blue);   border-color: var(--blue); }
     .dp[data-pkey="tr"].active { background: var(--gray-400); border-color: var(--gray-400); }
@@ -673,13 +674,13 @@
       </div>
     </div>
     <div id="dueSoonTodayBox" style="display:none">
-      <div class="future-group">
+      <div class="future-group" id="grp-due-today" data-drop="due-today">
         <div class="future-group-label">Today</div>
         <div class="task-list" id="list-due-today"></div>
       </div>
     </div>
     <div id="dueSoonTomorrowBox" style="display:none">
-      <div class="future-group">
+      <div class="future-group" id="grp-due-tomorrow" data-drop="due-tomorrow">
         <div class="future-group-label">Tomorrow</div>
         <div class="task-list" id="list-due-tomorrow"></div>
       </div>
@@ -836,7 +837,8 @@
     <div class="fg">
       <label>Due date</label>
       <div class="date-presets">
-        <button type="button" class="dp"          data-pkey="ds"  onclick="setPreset(0)">Due Soon</button>
+        <button type="button" class="dp"          data-pkey="td"  onclick="setPreset(0)">Today</button>
+        <button type="button" class="dp"          data-pkey="tm"  onclick="setPreset(1)">Tomorrow</button>
         <button type="button" class="dp"          data-pkey="up"  onclick="setPreset(3)">Upcoming</button>
         <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
         <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Unscheduled</button>
@@ -1151,11 +1153,6 @@ function render() {
   // Overdue box
   document.getElementById('overdueBox').style.display = G.overdue.length ? '' : 'none';
 
-  // Future sub-groups
-  ['f1w','f2w','f1m'].forEach(k => {
-    const el = document.getElementById(`grp-${k}`);
-    if (el) el.style.display = G[k].length ? '' : 'none';
-  });
 
   // Badges
   document.getElementById('badge-due-soon').textContent = G.overdue.length + G['due-soon'].length;
@@ -1451,7 +1448,7 @@ function quickAdd(section) {
 // ══════════════════════════════════════════════════════════
 function setPreset(days) {
   document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
-  const key = days === null ? 'tr' : days === 0 ? 'ds' : days === 3 ? 'up' : 'fu';
+  const key = days === null ? 'tr' : days === 0 ? 'td' : days === 1 ? 'tm' : days === 3 ? 'up' : 'fu';
   setActivePreset(key);
 }
 function setActivePreset(key) {
@@ -1462,8 +1459,9 @@ function clearPresets() {
 }
 function autoHighlightPreset(dateStr) {
   const d = daysDiff(dateStr);
-  if (d <= 1)      setActivePreset('ds');
-  else if (d <= 5) setActivePreset('up');
+  if (d === 0)      setActivePreset('td');
+  else if (d === 1) setActivePreset('tm');
+  else if (d <= 5)  setActivePreset('up');
   else if (d <= 13) setActivePreset('fu');
 }
 
@@ -1490,7 +1488,9 @@ function overlayClick(e) { if (e.target.id === 'overlay') closeModal(); }
 //  DRAG AND DROP
 // ══════════════════════════════════════════════════════════
 const DROP_DATE = {
-  'due-soon': () => toISO(todayDate()),
+  'due-soon':     () => toISO(todayDate()),
+  'due-today':    () => toISO(todayDate()),
+  'due-tomorrow': () => toISO(addDays(1)),
   'upcoming': () => toISO(addDays(3)),
   'future':   () => toISO(addDays(7)),
   'f1w':      () => toISO(addDays(7)),

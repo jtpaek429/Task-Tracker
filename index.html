@@ -494,11 +494,16 @@
     .date-input-wrap input[type="text"] { padding-right: 36px; }
     .btn-cal {
       position: absolute; right: 8px;
-      background: none; border: none; padding: 0; cursor: pointer;
+      background: none; border: none; padding: 0;
       color: var(--gray-400); display: flex; align-items: center;
-      transition: color .15s;
+      transition: color .15s; pointer-events: none;
     }
     .btn-cal:hover { color: var(--red); }
+    .cal-picker-overlay {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 36px;
+      opacity: 0; cursor: pointer; border: none; padding: 0;
+      box-sizing: border-box;
+    }
 
     .date-preview {
       font-size: 12px; color: var(--gray-500); margin-top: 5px;
@@ -923,12 +928,12 @@
       </div>
       <div class="date-input-wrap">
         <input type="text" id="fDueText" placeholder="e.g. today, next friday, apr 25…" autocomplete="off" oninput="onDueTextInput()" />
-        <button type="button" class="btn-cal" onclick="openCalPicker()" title="Pick from calendar">
+        <button type="button" class="btn-cal" tabindex="-1" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z"/>
           </svg>
         </button>
-        <input type="date" id="fDuePicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="onCalPick()" />
+        <input type="date" id="fDuePicker" class="cal-picker-overlay" onchange="onCalPick()" />
       </div>
       <input type="hidden" id="fDue" />
       <div id="datePreview" class="date-preview"></div>
@@ -1680,11 +1685,6 @@ function setActivePreset(key) {
 }
 function clearPresets() {
   document.querySelectorAll('.dp').forEach(b => b.classList.remove('active'));
-}
-function openCalPicker() {
-  const picker = document.getElementById('fDuePicker');
-  if (document.getElementById('fDue').value) picker.value = document.getElementById('fDue').value;
-  picker.showPicker?.() ?? picker.click();
 }
 function onCalPick() {
   const iso = document.getElementById('fDuePicker').value;

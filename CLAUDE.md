@@ -29,12 +29,18 @@ create table tasks (
   link         text,
   completed    boolean default false,
   completed_at timestamptz,
-  created_at   timestamptz default now()
+  created_at   timestamptz default now(),
+  priority     integer          -- 1=High, 2=Medium, 3=Low, null=none
 );
 alter table tasks enable row level security;
 create policy "own tasks only" on tasks
   for all using (auth.uid() = user_id);
 ```
+
+> **Migration (if column not yet added):**
+> ```sql
+> alter table tasks add column priority integer;
+> ```
 
 ## Data flow
 - `tasks` array is the in-memory state
@@ -44,8 +50,14 @@ create policy "own tasks only" on tasks
 
 ## Key UI decisions
 - **Sections**: Due Soon (red), Upcoming (amber), Future (blue), Unscheduled (gray), Done (green)
-- **Unscheduled** (formerly "Triage"): full-width, auto-collapses when empty
-- **Preset pills** in task modal are colored to match their section
+- **Due Soon subsections**: always-visible Today / Tomorrow sub-groups inside the Due Soon panel; both are drag-and-drop targets
+- **Future subsections**: 1 Week Out / 2 Weeks Out / 1+ Month always visible, no "Nothing here" placeholder (50px min-height preserved for drag targets)
+- **Unscheduled** (formerly "Triage"): full-width, auto-collapses when empty, auto-expands when tasks are present
+- **Preset pills** in task modal: Today (0 days), Tomorrow (1 day), Upcoming (3 days), Future (7 days), Unscheduled — colored to match their section
+- **Task priorities**: P1 High (red), P2 Medium (amber), P3 Low (blue), or none — set in modal, shown as badge on card, sort priority-first within each section
+- **Keyboard shortcuts**: `N` = open new task modal, `Enter` = save from anywhere in modal, `Esc` = close modal, `Cmd+K` = open modal, `Cmd+Z/Y` = undo/redo
+- **Empty state**: when a user has no active tasks, the grid is hidden and a "You're all caught up!" prompt is shown
+- **Logo**: `mytodopagelogo.svg` — used in header, auth overlay, favicon, apple-touch-icon, and privacy page
 - **Dev mode**: generates 5 test tasks (tagged `_dev:true`) and can bulk-delete them
 
 ## Mobile (≤700px)
@@ -58,11 +70,16 @@ create policy "own tasks only" on tasks
 - Tap card description to expand beyond 2-line clamp
 
 ## Parked ideas (not yet built)
+- Search / filter bar
+- Dark mode
+- Natural language date input ("friday", "next week")
+- Recurring tasks
+- Account deletion flow (needed before opening to public users)
+- Completion micro-animation (checkmark flash / strikethrough)
 - Swipe right to complete task on mobile
 - Pull-to-refresh
 - PWA / add to home screen support
 - Haptic feedback on task completion (Android only, iOS Safari doesn't support)
-- Account deletion flow (needed before opening to public users)
 
 ## Repo / branch hygiene
 - Work on feature branches, open PRs against `main`

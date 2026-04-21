@@ -441,7 +441,7 @@
     .fg label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
     .hint { font-weight: 400; color: var(--gray-400); }
 
-    input[type="text"], input[type="url"], input[type="date"],
+    input[type="text"], input[type="url"],
     input[type="email"], input[type="password"], textarea {
       width: 100%; border: 1.5px solid var(--gray-200);
       border-radius: 8px; padding: 9px 12px;
@@ -495,6 +495,12 @@
     .dp[data-pkey="up"].active { background: var(--amber);  border-color: var(--amber); }
     .dp[data-pkey="fu"].active { background: var(--blue);   border-color: var(--blue); }
     .dp[data-pkey="tr"].active { background: var(--gray-400); border-color: var(--gray-400); }
+
+    .date-preview {
+      font-size: 12px; color: var(--gray-500); margin-top: 5px;
+      min-height: 18px; transition: opacity .15s;
+    }
+    .date-preview.valid { color: var(--red); font-weight: 500; }
 
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     .btn-cancel {
@@ -652,13 +658,10 @@
       .overlay.open .modal { transform: translateY(0); }
 
       /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
-      input[type="text"], input[type="url"], input[type="date"],
+      input[type="text"], input[type="url"],
       input[type="email"], input[type="password"], textarea {
         font-size: 16px;
       }
-
-      /* Prevent date picker from overflowing modal */
-      input[type="date"] { max-width: 100%; box-sizing: border-box; }
     }
   </style>
 </head>
@@ -914,7 +917,9 @@
         <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
         <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Unscheduled</button>
       </div>
-      <input type="date" id="fDue" oninput="clearPresets()" />
+      <input type="text" id="fDueText" placeholder="e.g. today, next friday, apr 25…" autocomplete="off" oninput="onDueTextInput()" />
+      <input type="hidden" id="fDue" />
+      <div id="datePreview" class="date-preview"></div>
     </div>
 
     <div class="fg">
@@ -1001,6 +1006,111 @@ function fmtFull(d)    { return d.toLocaleDateString('en-US',{weekday:'long',mon
 function fmtCompletedAt(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+
+// ══════════════════════════════════════════════════════════
+//  NATURAL LANGUAGE DATE PARSER
+// ══════════════════════════════════════════════════════════
+const NL_MONTHS = {
+  jan:0,january:0,feb:1,february:1,mar:2,march:2,
+  apr:3,april:3,may:4,jun:5,june:5,
+  jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,
+  oct:9,october:9,nov:10,november:10,dec:11,december:11
+};
+const NL_DAYS = {
+  sun:0,sunday:0,mon:1,monday:1,tue:2,tues:2,tuesday:2,
+  wed:3,wednesday:3,thu:4,thurs:4,thursday:4,
+  fri:5,friday:5,sat:6,saturday:6
+};
+
+function parseNLDate(input) {
+  if (!input) return null;
+  const s = input.trim().toLowerCase().replace(/[,\.]/g,' ').replace(/\s+/g,' ').trim();
+
+  if (s === 'today' || s === 'td')                          return toISO(todayDate());
+  if (s === 'tomorrow' || s === 'tmr' || s === 'tmrw')      return toISO(addDays(1));
+  if (s === 'yesterday')                                     return toISO(addDays(-1));
+  if (s === 'next week')                                     return toISO(addDays(7));
+  if (s === 'end of week' || s === 'eow')                   return toISO(addDays(7 - todayDate().getDay() || 7));
+  if (s === 'next month') {
+    const d = todayDate(); d.setMonth(d.getMonth()+1); return toISO(d);
+  }
+  if (s === 'end of month' || s === 'eom') {
+    return toISO(new Date(todayDate().getFullYear(), todayDate().getMonth()+1, 0));
+  }
+
+  // "in X days/weeks/months"
+  let m = s.match(/^in (\d+) (days?|weeks?|months?)$/);
+  if (m) {
+    const n = parseInt(m[1]);
+    if (m[2].startsWith('d')) return toISO(addDays(n));
+    if (m[2].startsWith('w')) return toISO(addDays(n * 7));
+    if (m[2].startsWith('m')) { const d = todayDate(); d.setMonth(d.getMonth()+n); return toISO(d); }
+  }
+
+  // "X days/weeks from now"
+  m = s.match(/^(\d+) (days?|weeks?) from now$/);
+  if (m) {
+    const n = parseInt(m[1]);
+    if (m[2].startsWith('d')) return toISO(addDays(n));
+    if (m[2].startsWith('w')) return toISO(addDays(n * 7));
+  }
+
+  // day names with optional "next"/"this" modifier
+  m = s.match(/^(next |this )?(sun(?:day)?|mon(?:day)?|tues?(?:day)?|wed(?:nesday)?|thu(?:rs?(?:day)?)?|fri(?:day)?|sat(?:urday)?)$/);
+  if (m) {
+    const modifier = (m[1] || '').trim();
+    const dow = NL_DAYS[m[2].substring(0,3)] ?? NL_DAYS[m[2]];
+    if (dow !== undefined) {
+      let diff = dow - todayDate().getDay();
+      if (modifier === 'next') { if (diff <= 0) diff += 7; if (diff === 0) diff = 7; }
+      else { if (diff <= 0) diff += 7; }
+      return toISO(addDays(diff));
+    }
+  }
+
+  // Month name + day: "april 25", "apr 25th"
+  m = s.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/);
+  if (m && NL_MONTHS[m[1]] !== undefined) {
+    const mo = NL_MONTHS[m[1]], day = parseInt(m[2]);
+    const yr = m[3] ? parseInt(m[3]) : pickYear(mo, day);
+    return (day >= 1 && day <= 31) ? toISO(new Date(yr, mo, day)) : null;
+  }
+
+  // Day + month: "25 april", "25th apr"
+  m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)(?:\s+(\d{4}))?$/);
+  if (m && NL_MONTHS[m[2]] !== undefined) {
+    const day = parseInt(m[1]), mo = NL_MONTHS[m[2]];
+    const yr = m[3] ? parseInt(m[3]) : pickYear(mo, day);
+    return (day >= 1 && day <= 31) ? toISO(new Date(yr, mo, day)) : null;
+  }
+
+  // MM/DD or MM-DD or MM/DD/YYYY
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{4}))?$/);
+  if (m) {
+    const mo = parseInt(m[1])-1, day = parseInt(m[2]);
+    const yr = m[3] ? parseInt(m[3]) : pickYear(mo, day);
+    return (mo >= 0 && mo <= 11 && day >= 1 && day <= 31) ? toISO(new Date(yr, mo, day)) : null;
+  }
+
+  return null;
+}
+
+function pickYear(mo, day) {
+  const today = todayDate();
+  const yr = today.getFullYear();
+  const candidate = new Date(yr, mo, day); candidate.setHours(0,0,0,0);
+  return candidate < today ? yr+1 : yr;
+}
+
+function nlPreviewText(isoDate) {
+  if (!isoDate) return '';
+  const diff = daysDiff(isoDate);
+  const label = parseLocal(isoDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  if (diff === 0)  return `Today — ${label}`;
+  if (diff === 1)  return `Tomorrow — ${label}`;
+  if (diff === -1) return `Yesterday — ${label}`;
+  return label;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1481,12 +1591,13 @@ function startEdit(e, id) {
   editingId = id;
   document.getElementById('fTitle').value = t.title;
   document.getElementById('fDesc').value  = t.description || '';
-  document.getElementById('fDue').value   = t.due  || '';
-  document.getElementById('fLink').value  = t.link || '';
+  document.getElementById('fDue').value     = t.due  || '';
+  document.getElementById('fDueText').value = t.due ? fmtDate(t.due) : '';
+  document.getElementById('fLink').value    = t.link || '';
   document.getElementById('modalHeading').textContent = 'Edit Task';
   document.getElementById('btnSave').textContent = 'Save Changes';
   clearPresets();
-  if (t.due) autoHighlightPreset(t.due);
+  if (t.due) { autoHighlightPreset(t.due); updateDatePreview(t.due); } else { updateDatePreview(null); }
   clearPriority();
   if (t.priority) setPriority(t.priority);
   openModal();
@@ -1531,11 +1642,15 @@ function quickAdd(section) {
   editingId = null;
   ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
   const days = QUICK_DAYS[section];
-  document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
+  const iso = (days !== null) ? toISO(addDays(days)) : '';
+  document.getElementById('fDue').value = iso;
+  const labels = { 0:'today', 1:'tomorrow' };
+  document.getElementById('fDueText').value = days === null ? '' : (labels[days] ?? fmtDate(iso));
   document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';
   clearPresets();
   setActivePreset(QUICK_PKEY[section]);
+  updateDatePreview(iso);
   openModal();
 }
 
@@ -1543,15 +1658,33 @@ function quickAdd(section) {
 //  DATE PRESETS
 // ══════════════════════════════════════════════════════════
 function setPreset(days) {
-  document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
+  const iso = (days !== null) ? toISO(addDays(days)) : '';
+  document.getElementById('fDue').value = iso;
+  const labels = { 0:'today', 1:'tomorrow' };
+  document.getElementById('fDueText').value = days === null ? '' : (labels[days] ?? fmtDate(iso));
   const key = days === null ? 'tr' : days === 0 ? 'td' : days === 1 ? 'tm' : days === 3 ? 'up' : 'fu';
   setActivePreset(key);
+  updateDatePreview(iso);
 }
 function setActivePreset(key) {
   document.querySelectorAll('.dp').forEach(b => b.classList.toggle('active', b.dataset.pkey === key));
 }
 function clearPresets() {
   document.querySelectorAll('.dp').forEach(b => b.classList.remove('active'));
+}
+function onDueTextInput() {
+  const raw = document.getElementById('fDueText').value;
+  const iso = parseNLDate(raw);
+  document.getElementById('fDue').value = iso || '';
+  clearPresets();
+  if (iso) autoHighlightPreset(iso);
+  updateDatePreview(iso);
+}
+function updateDatePreview(iso) {
+  const el = document.getElementById('datePreview');
+  if (!iso) { el.textContent = ''; el.classList.remove('valid'); return; }
+  el.textContent = nlPreviewText(iso);
+  el.classList.add('valid');
 }
 function setPriority(val) {
   document.querySelectorAll('.prio-btn').forEach(b => b.classList.toggle('active', (b.dataset.prio === String(val ?? ''))));
@@ -1584,6 +1717,8 @@ function closeModal() {
   editingId = null;
   ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fDue').value = '';
+  document.getElementById('fDueText').value = '';
+  updateDatePreview(null);
   document.getElementById('fTitle').classList.remove('error');
   document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';

@@ -1135,9 +1135,9 @@ function render() {
   fill('list-due-today',   dueToday,     false);
   fill('list-due-tomorrow',dueTomorrow,  false);
 
-  document.getElementById('dueSoonTodayBox').style.display    = dueToday.length    ? '' : 'none';
-  document.getElementById('dueSoonTomorrowBox').style.display = dueTomorrow.length ? '' : 'none';
-  document.getElementById('dueSoonEmpty').style.display       = (!dueToday.length && !dueTomorrow.length) ? '' : 'none';
+  document.getElementById('dueSoonTodayBox').style.display    = dueToday.length ? '' : 'none';
+  document.getElementById('dueSoonTomorrowBox').style.display = '';
+  document.getElementById('dueSoonEmpty').style.display       = 'none';
   fill('list-upcoming', G.upcoming,      false);
   fill('list-f1w',      G.f1w,           false);
   fill('list-f2w',      G.f2w,           false);

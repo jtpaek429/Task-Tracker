@@ -383,13 +383,7 @@
     }
     .card-due.overdue { color: var(--red); font-weight: 600; }
 
-    .card-link {
-      font-size: 11px; color: var(--blue);
-      text-decoration: none; display: flex; align-items: center; gap: 2px;
-    }
-    .card-link:hover { text-decoration: underline; }
-
-    .card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
     .task-card:hover .card-actions { opacity: 1; }
 
     .act-btn {
@@ -441,7 +435,7 @@
     .fg label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
     .hint { font-weight: 400; color: var(--gray-400); }
 
-    input[type="text"], input[type="url"], input[type="date"],
+    input[type="text"], input[type="url"],
     input[type="email"], input[type="password"], textarea {
       width: 100%; border: 1.5px solid var(--gray-200);
       border-radius: 8px; padding: 9px 12px;
@@ -495,6 +489,27 @@
     .dp[data-pkey="up"].active { background: var(--amber);  border-color: var(--amber); }
     .dp[data-pkey="fu"].active { background: var(--blue);   border-color: var(--blue); }
     .dp[data-pkey="tr"].active { background: var(--gray-400); border-color: var(--gray-400); }
+
+    .date-input-wrap { position: relative; display: flex; align-items: center; }
+    .date-input-wrap input[type="text"] { padding-right: 36px; }
+    .btn-cal {
+      position: absolute; right: 8px;
+      background: none; border: none; padding: 0;
+      color: var(--gray-400); display: flex; align-items: center;
+      transition: color .15s; pointer-events: none;
+    }
+    .btn-cal:hover { color: var(--red); }
+    .cal-picker-overlay {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 36px;
+      opacity: 0; cursor: pointer; border: none; padding: 0;
+      box-sizing: border-box;
+    }
+
+    .date-preview {
+      font-size: 12px; color: var(--gray-500); margin-top: 5px;
+      min-height: 18px; transition: opacity .15s;
+    }
+    .date-preview.valid { color: var(--red); font-weight: 500; }
 
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     .btn-cancel {
@@ -647,18 +662,15 @@
         border-radius: 20px 20px 0 0;
         padding: 20px 16px 36px;
         transform: translateY(100%);
-        max-height: 90vh; overflow-y: auto;
+        max-height: 90vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
       }
       .overlay.open .modal { transform: translateY(0); }
 
       /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
-      input[type="text"], input[type="url"], input[type="date"],
+      input[type="text"], input[type="url"],
       input[type="email"], input[type="password"], textarea {
         font-size: 16px;
       }
-
-      /* Prevent date picker from overflowing modal */
-      input[type="date"] { max-width: 100%; box-sizing: border-box; }
     }
   </style>
 </head>
@@ -914,12 +926,17 @@
         <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
         <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Unscheduled</button>
       </div>
-      <input type="date" id="fDue" oninput="clearPresets()" />
-    </div>
-
-    <div class="fg">
-      <label for="fLink">Link <span class="hint">(optional)</span></label>
-      <input type="url" id="fLink" placeholder="https://…" autocomplete="off" />
+      <div class="date-input-wrap">
+        <input type="text" id="fDueText" placeholder="e.g. today, next friday, apr 25…" autocomplete="off" oninput="onDueTextInput()" />
+        <button type="button" class="btn-cal" tabindex="-1" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h5v5H7z"/>
+          </svg>
+        </button>
+        <input type="date" id="fDuePicker" class="cal-picker-overlay" onchange="onCalPick()" />
+      </div>
+      <input type="hidden" id="fDue" />
+      <div id="datePreview" class="date-preview"></div>
     </div>
 
     <div class="modal-actions">
@@ -1001,6 +1018,126 @@ function fmtFull(d)    { return d.toLocaleDateString('en-US',{weekday:'long',mon
 function fmtCompletedAt(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+
+// ══════════════════════════════════════════════════════════
+//  NATURAL LANGUAGE DATE PARSER
+// ══════════════════════════════════════════════════════════
+const NL_MONTHS = {
+  jan:0,january:0,feb:1,february:1,mar:2,march:2,
+  apr:3,april:3,may:4,jun:5,june:5,
+  jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,
+  oct:9,october:9,nov:10,november:10,dec:11,december:11
+};
+const NL_DAYS = {
+  sun:0,sunday:0,mon:1,monday:1,tue:2,tues:2,tuesday:2,
+  wed:3,wednesday:3,thu:4,thurs:4,thursday:4,
+  fri:5,friday:5,sat:6,saturday:6
+};
+
+function parseNLDate(input) {
+  if (!input) return null;
+  const s = input.trim().toLowerCase().replace(/[,\.]/g,' ').replace(/\s+/g,' ').trim();
+
+  if (s === 'today' || s === 'td')                          return toISO(todayDate());
+  if (s === 'tomorrow' || s === 'tmr' || s === 'tmrw')      return toISO(addDays(1));
+  if (s === 'yesterday')                                     return toISO(addDays(-1));
+  if (s === 'next week')                                     return toISO(addDays(7));
+  if (s === 'end of week' || s === 'eow')                   return toISO(addDays(7 - todayDate().getDay() || 7));
+  if (s === 'next month') {
+    const d = todayDate(); d.setMonth(d.getMonth()+1); return toISO(d);
+  }
+  if (s === 'end of month' || s === 'eom') {
+    return toISO(new Date(todayDate().getFullYear(), todayDate().getMonth()+1, 0));
+  }
+
+  // "in X days/weeks/months"
+  let m = s.match(/^in (\d+) (days?|weeks?|months?)$/);
+  if (m) {
+    const n = parseInt(m[1]);
+    if (m[2].startsWith('d')) return toISO(addDays(n));
+    if (m[2].startsWith('w')) return toISO(addDays(n * 7));
+    if (m[2].startsWith('m')) { const d = todayDate(); d.setMonth(d.getMonth()+n); return toISO(d); }
+  }
+
+  // "X days/weeks from now"
+  m = s.match(/^(\d+) (days?|weeks?) from now$/);
+  if (m) {
+    const n = parseInt(m[1]);
+    if (m[2].startsWith('d')) return toISO(addDays(n));
+    if (m[2].startsWith('w')) return toISO(addDays(n * 7));
+  }
+
+  // day names with optional "next"/"this" modifier
+  m = s.match(/^(next |this )?(sun(?:day)?|mon(?:day)?|tues?(?:day)?|wed(?:nesday)?|thu(?:rs?(?:day)?)?|fri(?:day)?|sat(?:urday)?)$/);
+  if (m) {
+    const modifier = (m[1] || '').trim();
+    const dow = NL_DAYS[m[2].substring(0,3)] ?? NL_DAYS[m[2]];
+    if (dow !== undefined) {
+      const todayDow = todayDate().getDay();
+      let diff;
+      if (modifier === 'next') {
+        // Resolve to the target day within next calendar week (Mon–Sun)
+        const todayWd = todayDow === 0 ? 7 : todayDow;   // Mon=1…Sun=7
+        const targetWd = dow === 0 ? 7 : dow;
+        const daysToNextMon = (8 - todayWd) % 7 || 7;
+        diff = daysToNextMon + targetWd - 1;
+      } else {
+        // No modifier: next upcoming occurrence (never today)
+        diff = dow - todayDow;
+        if (diff <= 0) diff += 7;
+      }
+      return toISO(addDays(diff));
+    }
+  }
+
+  // Month name + day: "april 25", "apr 25th"
+  m = s.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/);
+  if (m && NL_MONTHS[m[1]] !== undefined) {
+    const mo = NL_MONTHS[m[1]], day = parseInt(m[2]);
+    const yr = m[3] ? parseInt(m[3]) : pickYear(mo, day);
+    return (day >= 1 && day <= 31) ? toISO(new Date(yr, mo, day)) : null;
+  }
+
+  // Day + month: "25 april", "25th apr"
+  m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)(?:\s+(\d{4}))?$/);
+  if (m && NL_MONTHS[m[2]] !== undefined) {
+    const day = parseInt(m[1]), mo = NL_MONTHS[m[2]];
+    const yr = m[3] ? parseInt(m[3]) : pickYear(mo, day);
+    return (day >= 1 && day <= 31) ? toISO(new Date(yr, mo, day)) : null;
+  }
+
+  // MM/DD or MM-DD or MM/DD/YYYY
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{4}))?$/);
+  if (m) {
+    const mo = parseInt(m[1])-1, day = parseInt(m[2]);
+    const yr = m[3] ? parseInt(m[3]) : pickYear(mo, day);
+    return (mo >= 0 && mo <= 11 && day >= 1 && day <= 31) ? toISO(new Date(yr, mo, day)) : null;
+  }
+
+  return null;
+}
+
+function pickYear(mo, day) {
+  const today = todayDate();
+  const yr = today.getFullYear();
+  const candidate = new Date(yr, mo, day); candidate.setHours(0,0,0,0);
+  return candidate < today ? yr+1 : yr;
+}
+
+function nlPreviewText(isoDate) {
+  if (!isoDate) return '';
+  const diff = daysDiff(isoDate);
+  const d = parseLocal(isoDate);
+  const crossYear = d.getFullYear() !== todayDate().getFullYear();
+  const opts = crossYear
+    ? {weekday:'long', month:'long', day:'numeric', year:'numeric'}
+    : {weekday:'long', month:'long', day:'numeric'};
+  const label = d.toLocaleDateString('en-US', opts);
+  if (diff === 0)  return `Today — ${label}`;
+  if (diff === 1)  return `Tomorrow — ${label}`;
+  if (diff === -1) return `Yesterday — ${label}`;
+  return label;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1317,16 +1454,6 @@ function buildCard(task, compact) {
       </svg>${lbl}</span>`;
   }
 
-  let linkHtml = '';
-  if (task.link) {
-    linkHtml = `<a class="card-link" href="${esc(task.link)}" target="_blank" rel="noopener"
-      draggable="false" onclick="event.stopPropagation()">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="opacity:.7">
-        <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9
-                 H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1
-                 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
-      </svg>Link</a>`;
-  }
 
   const doneHtml = (task.completed && task.completedAt)
     ? `<div class="completed-at">Completed ${fmtCompletedAt(task.completedAt)}</div>`
@@ -1355,7 +1482,7 @@ function buildCard(task, compact) {
       </div>
     </div>
     <div class="card-footer">
-      <div class="card-meta">${dueHtml}${linkHtml}</div>
+      <div class="card-meta">${dueHtml}</div>
       ${actionsHtml}
     </div>
     ${delHtml}`;
@@ -1481,12 +1608,12 @@ function startEdit(e, id) {
   editingId = id;
   document.getElementById('fTitle').value = t.title;
   document.getElementById('fDesc').value  = t.description || '';
-  document.getElementById('fDue').value   = t.due  || '';
-  document.getElementById('fLink').value  = t.link || '';
+  document.getElementById('fDue').value     = t.due  || '';
+  document.getElementById('fDueText').value = t.due ? fmtDate(t.due) : '';
   document.getElementById('modalHeading').textContent = 'Edit Task';
   document.getElementById('btnSave').textContent = 'Save Changes';
   clearPresets();
-  if (t.due) autoHighlightPreset(t.due);
+  if (t.due) { autoHighlightPreset(t.due); updateDatePreview(t.due); } else { updateDatePreview(null); }
   clearPriority();
   if (t.priority) setPriority(t.priority);
   openModal();
@@ -1504,15 +1631,13 @@ function saveTask() {
   const description = document.getElementById('fDesc').value.trim();
   const due      = document.getElementById('fDue').value;
   const priority = getSelectedPriority();
-  let   link = document.getElementById('fLink').value.trim();
-  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
 
   let task;
   if (editingId) {
     task = tasks.find(t => t.id === editingId);
-    if (task) Object.assign(task, { title, description, due, link, priority });
+    if (task) Object.assign(task, { title, description, due, priority });
   } else {
-    task = { id:`t_${Date.now()}`, title, description, due, link, priority, completed:false, createdAt:new Date().toISOString() };
+    task = { id:`t_${Date.now()}`, title, description, due, priority, completed:false, createdAt:new Date().toISOString() };
     tasks.push(task);
   }
   save();
@@ -1529,13 +1654,17 @@ const QUICK_PKEY = { 'due-soon':'ds', 'upcoming':'up', 'future':'fu', 'unschedul
 
 function quickAdd(section) {
   editingId = null;
-  ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
+  ['fTitle','fDesc'].forEach(id => document.getElementById(id).value = '');
   const days = QUICK_DAYS[section];
-  document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
+  const iso = (days !== null) ? toISO(addDays(days)) : '';
+  document.getElementById('fDue').value = iso;
+  const labels = { 0:'today', 1:'tomorrow' };
+  document.getElementById('fDueText').value = days === null ? '' : (labels[days] ?? fmtDate(iso));
   document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';
   clearPresets();
   setActivePreset(QUICK_PKEY[section]);
+  updateDatePreview(iso);
   openModal();
 }
 
@@ -1543,15 +1672,42 @@ function quickAdd(section) {
 //  DATE PRESETS
 // ══════════════════════════════════════════════════════════
 function setPreset(days) {
-  document.getElementById('fDue').value = (days !== null) ? toISO(addDays(days)) : '';
+  const iso = (days !== null) ? toISO(addDays(days)) : '';
+  document.getElementById('fDue').value = iso;
+  const labels = { 0:'today', 1:'tomorrow' };
+  document.getElementById('fDueText').value = days === null ? '' : (labels[days] ?? fmtDate(iso));
   const key = days === null ? 'tr' : days === 0 ? 'td' : days === 1 ? 'tm' : days === 3 ? 'up' : 'fu';
   setActivePreset(key);
+  updateDatePreview(iso);
 }
 function setActivePreset(key) {
   document.querySelectorAll('.dp').forEach(b => b.classList.toggle('active', b.dataset.pkey === key));
 }
 function clearPresets() {
   document.querySelectorAll('.dp').forEach(b => b.classList.remove('active'));
+}
+function onCalPick() {
+  const iso = document.getElementById('fDuePicker').value;
+  if (!iso) return;
+  document.getElementById('fDue').value = iso;
+  document.getElementById('fDueText').value = fmtDate(iso);
+  clearPresets();
+  autoHighlightPreset(iso);
+  updateDatePreview(iso);
+}
+function onDueTextInput() {
+  const raw = document.getElementById('fDueText').value;
+  const iso = parseNLDate(raw);
+  document.getElementById('fDue').value = iso || '';
+  clearPresets();
+  if (iso) autoHighlightPreset(iso);
+  updateDatePreview(iso);
+}
+function updateDatePreview(iso) {
+  const el = document.getElementById('datePreview');
+  if (!iso) { el.textContent = ''; el.classList.remove('valid'); return; }
+  el.textContent = nlPreviewText(iso);
+  el.classList.add('valid');
 }
 function setPriority(val) {
   document.querySelectorAll('.prio-btn').forEach(b => b.classList.toggle('active', (b.dataset.prio === String(val ?? ''))));
@@ -1582,8 +1738,10 @@ function closeModal() {
   document.activeElement?.blur();
   document.getElementById('overlay').classList.remove('open');
   editingId = null;
-  ['fTitle','fDesc','fLink'].forEach(id => document.getElementById(id).value = '');
+  ['fTitle','fDesc'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fDue').value = '';
+  document.getElementById('fDueText').value = '';
+  updateDatePreview(null);
   document.getElementById('fTitle').classList.remove('error');
   document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';

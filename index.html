@@ -1137,7 +1137,7 @@ function render() {
   fill('list-due-today',   dueToday,     false);
   fill('list-due-tomorrow',dueTomorrow,  false);
 
-  document.getElementById('dueSoonTodayBox').style.display    = dueToday.length ? '' : 'none';
+  document.getElementById('dueSoonTodayBox').style.display    = '';
   document.getElementById('dueSoonTomorrowBox').style.display = '';
   document.getElementById('dueSoonEmpty').style.display       = 'none';
   fill('list-upcoming', G.upcoming,      false);

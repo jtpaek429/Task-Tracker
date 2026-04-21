@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Privacy Policy — mytodo.page</title>
+  <link rel="icon" type="image/svg+xml" href="mytodopagelogo.svg" />
+  <link rel="apple-touch-icon" href="mytodopagelogo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,12 +36,8 @@
       position: sticky; top: 0; z-index: 100;
       box-shadow: 0 1px 4px rgba(0,0,0,.05);
     }
-    .logo {
-      width: 32px; height: 32px; background: var(--red);
-      border-radius: 8px; display: flex; align-items: center; justify-content: center;
-      text-decoration: none; flex-shrink: 0;
-    }
-    .logo svg { width: 16px; height: 16px; fill: #fff; }
+    .logo { width: 32px; height: 32px; flex-shrink: 0; text-decoration: none; }
+    .logo img { width: 32px; height: 32px; border-radius: 8px; display: block; }
     .header-brand { font-size: 17px; font-weight: 700; letter-spacing: -.3px; text-decoration: none; color: var(--gray-900); }
     .back-link {
       margin-left: auto; font-size: 13px; color: var(--gray-500);
@@ -100,7 +98,7 @@
 
 <header>
   <a class="logo" href="/">
-    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+    <img src="mytodopagelogo.svg" alt="mytodo.page logo" />
   </a>
   <a class="header-brand" href="/">mytodo.page</a>
   <a class="back-link" href="/">← Back to app</a>

@@ -1069,7 +1069,7 @@
 
 <!-- ── Toast ──────────────────────────────────────────── -->
 <div class="toast" id="toast">
-  ✓ Task completed
+  <span id="toastMsg">✓ Task completed</span>
   <button class="toast-undo" onclick="undoLast()">Undo</button>
   <span class="toast-kbd">⌘Z</span>
 </div>
@@ -1696,16 +1696,14 @@ function toggle(e, id) {
   const t = tasks.find(t => t.id === id);
   if (!t) return;
 
-  const wasCompleted = t.completed;
+  const prev = snapTask(t);
   t.completed = !t.completed;
-  if (!wasCompleted) {
+  if (!prev.completed) {
     t.completedAt = new Date().toISOString();
   } else {
     delete t.completedAt;
   }
-
-  undoStack.push({ taskId: id, prevCompleted: wasCompleted });
-  redoStack = [];
+  pushUndo({ prev, next: snapTask(t) });
   save();
   dbUpsert(t);
 
@@ -1730,29 +1728,42 @@ function toggle(e, id) {
 // ══════════════════════════════════════════════════════════
 //  UNDO / REDO
 // ══════════════════════════════════════════════════════════
+// Each undo/redo entry: { prev: snapshot|null, next: snapshot|null }
+//   prev=null → task was just created (undo removes it)
+//   next=null → task was deleted      (undo re-adds it)
+//   both set  → task was edited       (undo restores prev)
+// Batch entry: { batch: [ {prev,next}, … ] }  for bulk/drag operations.
+function snapTask(t) { return { ...t }; }
+function pushUndo(entry) { undoStack.push(entry); redoStack = []; }
+
+function _applyUndoRedo(pairs, direction) {
+  pairs.forEach(({ prev, next }) => {
+    const target = direction === 'undo' ? prev : next;
+    const other  = direction === 'undo' ? next : prev;
+    if (!target) {
+      tasks = tasks.filter(t => t.id !== other.id);
+      dbDelete(other.id);
+    } else {
+      const existing = tasks.find(t => t.id === target.id);
+      if (existing) Object.assign(existing, target);
+      else tasks.push({ ...target });
+      dbUpsert(target);
+    }
+  });
+}
 function undoLast() {
   if (!undoStack.length) return;
-  const { taskId, prevCompleted } = undoStack.pop();
-  const t = tasks.find(t => t.id === taskId);
-  if (t) {
-    redoStack.push({ taskId, prevCompleted: t.completed });
-    t.completed = prevCompleted;
-    if (!prevCompleted) delete t.completedAt;
-    save(); dbUpsert(t); render();
-  }
-  hideToast();
+  const entry = undoStack.pop();
+  redoStack.push(entry);
+  _applyUndoRedo(entry.batch || [entry], 'undo');
+  save(); render(); hideToast();
 }
 function redoLast() {
   if (!redoStack.length) return;
-  const { taskId, prevCompleted } = redoStack.pop();
-  const t = tasks.find(t => t.id === taskId);
-  if (t) {
-    undoStack.push({ taskId, prevCompleted: t.completed });
-    t.completed = prevCompleted;
-    if (prevCompleted) t.completedAt = new Date().toISOString();
-    else delete t.completedAt;
-    save(); dbUpsert(t); render();
-  }
+  const entry = redoStack.pop();
+  undoStack.push(entry);
+  _applyUndoRedo(entry.batch || [entry], 'redo');
+  save(); render();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1803,43 +1814,58 @@ function hideBulkPanel() {
 
 function bulkSetDate(days) {
   const due = days !== null ? toISO(addDays(days)) : '';
+  const batch = [];
   selectedIds.forEach(id => {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
+    batch.push({ prev: snapTask(t), next: null });
     t.due = due;
+    batch[batch.length - 1].next = snapTask(t);
     dbUpsert(t);
   });
+  if (batch.length) pushUndo({ batch });
   save(); render(); clearSelection();
 }
 
 function bulkSetDateCustom(val) {
   if (!val) return;
+  const batch = [];
   selectedIds.forEach(id => {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
+    batch.push({ prev: snapTask(t), next: null });
     t.due = val;
+    batch[batch.length - 1].next = snapTask(t);
     dbUpsert(t);
   });
+  if (batch.length) pushUndo({ batch });
   save(); render(); clearSelection();
   document.getElementById('bulk-date-input').value = '';
 }
 
 function bulkSetPriority(priority) {
+  const batch = [];
   selectedIds.forEach(id => {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
+    batch.push({ prev: snapTask(t), next: null });
     t.priority = priority;
+    batch[batch.length - 1].next = snapTask(t);
     dbUpsert(t);
   });
+  if (batch.length) pushUndo({ batch });
   save(); render(); clearSelection();
 }
 
 function bulkDoDelete() {
+  const batch = [...selectedIds].map(id => ({ prev: snapTask(tasks.find(t => t.id === id)), next: null }));
+  if (batch.length) pushUndo({ batch });
   [...selectedIds].forEach(id => {
     tasks = tasks.filter(t => t.id !== id);
     dbDelete(id);
   });
   save(); render(); clearSelection();
+  showToast(`${batch.length} task${batch.length > 1 ? 's' : ''} deleted`);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1850,20 +1876,26 @@ function cancelDel(e)     { e.stopPropagation(); delConfirmId = null; render(); 
 function doDel(e) {
   e.stopPropagation();
   const id = delConfirmId;
+  const snap = snapTask(tasks.find(t => t.id === id));
+  pushUndo({ prev: snap, next: null });
   tasks = tasks.filter(t => t.id !== id);
   delConfirmId = null;
   save();
   dbDelete(id);
   render();
+  showToast('Task deleted');
 }
 function deleteEditingTask() {
   if (!editingId) return;
   const id = editingId;
+  const snap = snapTask(tasks.find(t => t.id === id));
+  pushUndo({ prev: snap, next: null });
   closeModal();
   tasks = tasks.filter(t => t.id !== id);
   save();
   dbDelete(id);
   render();
+  showToast('Task deleted');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1903,10 +1935,15 @@ function saveTask() {
   let task;
   if (editingId) {
     task = tasks.find(t => t.id === editingId);
-    if (task) Object.assign(task, { title, description, due, priority });
+    if (task) {
+      const prev = snapTask(task);
+      Object.assign(task, { title, description, due, priority });
+      pushUndo({ prev, next: snapTask(task) });
+    }
   } else {
     task = { id:`t_${Date.now()}`, title, description, due, priority, completed:false, createdAt:new Date().toISOString() };
     tasks.push(task);
+    pushUndo({ prev: null, next: snapTask(task) });
   }
   save();
   if (task) dbUpsert(task);
@@ -2055,10 +2092,16 @@ function initDropZone(el, key, stopProp) {
     const due = DROP_DATE[key]();
     const isMulti = selectedIds.has(draggingId) && selectedIds.size > 1;
     const ids = isMulti ? [...selectedIds] : [draggingId];
+    const batch = [];
     ids.forEach(id => {
       const t = tasks.find(t => t.id === id);
-      if (t) { t.due = due; dbUpsert(t); }
+      if (!t) return;
+      batch.push({ prev: snapTask(t), next: null });
+      t.due = due;
+      batch[batch.length - 1].next = snapTask(t);
+      dbUpsert(t);
     });
+    if (batch.length) pushUndo(batch.length === 1 ? batch[0] : { batch });
     draggingId = null;
     save();
     render();
@@ -2123,7 +2166,8 @@ function resetDevDate() {
 // ══════════════════════════════════════════════════════════
 //  TOAST
 // ══════════════════════════════════════════════════════════
-function showToast() {
+function showToast(msg = '✓ Task completed') {
+  document.getElementById('toastMsg').textContent = msg;
   clearTimeout(toastTimer);
   document.getElementById('toast').classList.add('show');
   toastTimer = setTimeout(hideToast, 5000);

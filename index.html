@@ -110,6 +110,23 @@
     .btn-dev-reset:hover { background: #fde68a; }
     #devSimLabel { font-size: 12px; color: #b45309; }
 
+    /* ── Empty state ─────────────────────────────────── */
+    .empty-state {
+      display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 80px 24px; text-align: center;
+    }
+    .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h2 { font-size: 20px; font-weight: 700; color: var(--gray-700); margin-bottom: 8px; }
+    .empty-state p  { font-size: 14px; color: var(--gray-400); margin-bottom: 24px; }
+    .empty-state .btn-add-empty {
+      background: var(--red); color: #fff; border: none;
+      padding: 10px 22px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: background .15s;
+    }
+    .empty-state .btn-add-empty:hover { background: #c23028; }
+
     /* ── Grid layout ──────────────────────────────────── */
     .grid {
       display: grid;
@@ -426,6 +443,30 @@
     }
     input.error { border-color: var(--red) !important; }
     textarea { resize: vertical; min-height: 72px; }
+
+    /* Priority picker */
+    .priority-picker { display: flex; gap: 6px; }
+    .prio-btn {
+      padding: 5px 13px; border-radius: 100px;
+      border: 1.5px solid var(--gray-200);
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      background: #fff; color: var(--gray-500); cursor: pointer; transition: all .15s;
+    }
+    .prio-btn:hover { border-color: var(--gray-400); color: var(--gray-700); }
+    .prio-btn[data-prio="1"].active { background: #fee2e2; border-color: var(--red);   color: var(--red); }
+    .prio-btn[data-prio="2"].active { background: #fef3c7; border-color: var(--amber); color: #92400e; }
+    .prio-btn[data-prio="3"].active { background: #eff6ff; border-color: var(--blue);  color: var(--blue); }
+    .prio-btn[data-prio=""].active  { background: var(--gray-100); border-color: var(--gray-300); color: var(--gray-500); }
+
+    /* Priority badge on card */
+    .prio-badge {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 100px; margin-right: 5px;
+      vertical-align: middle; flex-shrink: 0;
+    }
+    .prio-badge.p1 { background: #fee2e2; color: var(--red); }
+    .prio-badge.p2 { background: #fef3c7; color: #92400e; }
+    .prio-badge.p3 { background: #eff6ff; color: var(--blue); }
 
     /* Date preset pills */
     .date-presets { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -766,6 +807,14 @@
 
 </main>
 
+<!-- ── Empty state ───────────────────────────────────── -->
+<div class="empty-state" id="emptyState">
+  <div class="empty-state-icon">✅</div>
+  <h2>You're all caught up!</h2>
+  <p>No tasks yet — add one to get started.</p>
+  <button class="btn-add-empty" onclick="openModal()">Add your first task</button>
+</div>
+
 <!-- ── Floating Add Task button (mobile) ─────────────── -->
 <button class="fab" onclick="openModal()" aria-label="Add task">+</button>
 
@@ -832,6 +881,16 @@
     <div class="fg">
       <label for="fDesc">Description</label>
       <textarea id="fDesc" placeholder="Add notes, context, or details…"></textarea>
+    </div>
+
+    <div class="fg">
+      <label>Priority</label>
+      <div class="priority-picker">
+        <button type="button" class="prio-btn" data-prio="1" onclick="setPriority(1)">P1 High</button>
+        <button type="button" class="prio-btn" data-prio="2" onclick="setPriority(2)">P2 Medium</button>
+        <button type="button" class="prio-btn" data-prio="3" onclick="setPriority(3)">P3 Low</button>
+        <button type="button" class="prio-btn" data-prio=""  onclick="setPriority(null)">None</button>
+      </div>
     </div>
 
     <div class="fg">
@@ -946,6 +1005,7 @@ function taskToRow(t) {
     completed:    t.completed,
     completed_at: t.completedAt || null,
     created_at:   t.createdAt,
+    priority:     t.priority || null,
   };
 }
 
@@ -959,6 +1019,7 @@ function rowToTask(r) {
     completed:   r.completed,
     completedAt: r.completed_at || undefined,
     createdAt:   r.created_at,
+    priority:    r.priority || null,
   };
 }
 
@@ -1127,9 +1188,13 @@ function render() {
   const G = { overdue:[], 'due-soon':[], upcoming:[], f1w:[], f2w:[], f1m:[], unscheduled:[], done:[] };
   tasks.forEach(t => { const s = sectionFor(t); if (G[s]) G[s].push(t); });
 
-  // Sort
-  const byDue = (a,b) => (a.due||'').localeCompare(b.due||'');
-  ['overdue','due-soon','upcoming','f1w','f2w','f1m'].forEach(k => G[k].sort(byDue));
+  // Sort — priority first (P1→P2→P3→none), then by due date
+  const byPrioThenDue = (a,b) => {
+    const pa = a.priority || 99, pb = b.priority || 99;
+    if (pa !== pb) return pa - pb;
+    return (a.due||'').localeCompare(b.due||'');
+  };
+  ['overdue','due-soon','upcoming','f1w','f2w','f1m'].forEach(k => G[k].sort(byPrioThenDue));
   G.done.sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
 
   // Hide completed tasks older than 7 days
@@ -1163,6 +1228,11 @@ function render() {
 
   // Overdue box
   document.getElementById('overdueBox').style.display = G.overdue.length ? '' : 'none';
+
+  // Empty state
+  const hasActive = ['overdue','due-soon','upcoming','f1w','f2w','f1m','unscheduled'].some(k => G[k].length);
+  document.querySelector('.grid').style.display        = hasActive ? '' : 'none';
+  document.getElementById('emptyState').style.display  = hasActive ? 'none' : 'flex';
 
 
   // Badges
@@ -1267,7 +1337,7 @@ function buildCard(task, compact) {
     <div class="card-top">
       <div class="check${task.completed?' checked':''}" onclick="toggle(event,'${task.id}')"></div>
       <div class="card-body">
-        <div class="card-title">${esc(task.title)}</div>
+        <div class="card-title">${task.priority ? `<span class="prio-badge p${task.priority}">P${task.priority}</span>` : ''}${esc(task.title)}</div>
         ${task.description ? `<div class="card-desc" onclick="toggleDesc(event)">${esc(task.description)}</div>` : ''}
         ${doneHtml}
       </div>
@@ -1405,6 +1475,8 @@ function startEdit(e, id) {
   document.getElementById('btnSave').textContent = 'Save Changes';
   clearPresets();
   if (t.due) autoHighlightPreset(t.due);
+  clearPriority();
+  if (t.priority) setPriority(t.priority);
   openModal();
 }
 
@@ -1418,16 +1490,17 @@ function saveTask() {
     return;
   }
   const description = document.getElementById('fDesc').value.trim();
-  const due  = document.getElementById('fDue').value;
+  const due      = document.getElementById('fDue').value;
+  const priority = getSelectedPriority();
   let   link = document.getElementById('fLink').value.trim();
   if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
 
   let task;
   if (editingId) {
     task = tasks.find(t => t.id === editingId);
-    if (task) Object.assign(task, { title, description, due, link });
+    if (task) Object.assign(task, { title, description, due, link, priority });
   } else {
-    task = { id:`t_${Date.now()}`, title, description, due, link, completed:false, createdAt:new Date().toISOString() };
+    task = { id:`t_${Date.now()}`, title, description, due, link, priority, completed:false, createdAt:new Date().toISOString() };
     tasks.push(task);
   }
   save();
@@ -1468,6 +1541,16 @@ function setActivePreset(key) {
 function clearPresets() {
   document.querySelectorAll('.dp').forEach(b => b.classList.remove('active'));
 }
+function setPriority(val) {
+  document.querySelectorAll('.prio-btn').forEach(b => b.classList.toggle('active', (b.dataset.prio === String(val ?? ''))));
+}
+function clearPriority() {
+  document.querySelectorAll('.prio-btn').forEach(b => b.classList.remove('active'));
+}
+function getSelectedPriority() {
+  const active = document.querySelector('.prio-btn.active');
+  return active ? (parseInt(active.dataset.prio) || null) : null;
+}
 function autoHighlightPreset(dateStr) {
   const d = daysDiff(dateStr);
   if (d === 0)      setActivePreset('td');
@@ -1492,6 +1575,7 @@ function closeModal() {
   document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';
   clearPresets();
+  clearPriority();
 }
 function overlayClick(e) { if (e.target.id === 'overlay') closeModal(); }
 
@@ -1608,10 +1692,14 @@ function hideToast() {
 //  KEYBOARD SHORTCUTS
 // ══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  const inField = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
+  const inField   = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
+  const modalOpen = document.getElementById('overlay').classList.contains('open');
   if (e.key === 'Escape') { closeModal(); return; }
-  if (e.key === 'Enter' && document.activeElement.id === 'fTitle') { e.preventDefault(); saveTask(); return; }
+  if (e.key === 'Enter' && modalOpen && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'BUTTON') {
+    e.preventDefault(); saveTask(); return;
+  }
   if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); openModal(); return; }
+  if (!inField && !e.metaKey && !e.ctrlKey && e.key === 'n') { openModal(); return; }
   if (!inField) {
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); undoLast(); return; }
     if ((e.metaKey||e.ctrlKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) { e.preventDefault(); redoLast(); return; }

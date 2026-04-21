@@ -1141,9 +1141,9 @@ function render() {
   document.getElementById('dueSoonTomorrowBox').style.display = '';
   document.getElementById('dueSoonEmpty').style.display       = 'none';
   fill('list-upcoming', G.upcoming,      false);
-  fill('list-f1w',      G.f1w,           false);
-  fill('list-f2w',      G.f2w,           false);
-  fill('list-f1m',      G.f1m,           false);
+  fill('list-f1w',      G.f1w,           false, false);
+  fill('list-f2w',      G.f2w,           false, false);
+  fill('list-f1m',      G.f1m,           false, false);
   fill('list-unscheduled', G.unscheduled, true);
   fill('list-done',        G.done,       true);
 
@@ -1172,11 +1172,11 @@ function render() {
   applyCollapse();
 }
 
-function fill(listId, arr, horizontal) {
+function fill(listId, arr, horizontal, showEmpty = true) {
   const el = document.getElementById(listId);
   if (!el) return;
   el.innerHTML = '';
-  if (!arr.length) {
+  if (!arr.length && showEmpty) {
     const m = document.createElement('div');
     m.className = 'empty-msg';
     m.textContent = 'Nothing here';

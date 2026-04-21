@@ -747,6 +747,17 @@
     .bulk-panel-del .del-no:hover  { background: rgba(255,255,255,.22); }
     .bulk-panel-del .del-yes { background: var(--red); color: #fff; border-color: transparent; }
     .bulk-panel-del .del-yes:hover { background: #c23028; }
+
+    /* ── Shortcuts overlay ───────────────────────────── */
+    .shortcuts-table { width: 100%; border-collapse: collapse; margin: 4px 0 16px; }
+    .shortcuts-table .sc-section td {
+      padding: 10px 0 3px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--gray-400); border-bottom: 1px solid var(--gray-200);
+    }
+    .shortcuts-table tr td { padding: 5px 0; font-size: 13px; color: var(--gray-700); }
+    .shortcuts-table tr td:first-child { width: 110px; }
+    .sc-kbd { background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 4px; padding: 2px 7px; font-family: inherit; font-size: 12px; color: var(--gray-600); white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -911,7 +922,7 @@
   <h2>You're all caught up!</h2>
   <p>No tasks yet — add one to get started.</p>
   <button class="btn-add-empty" onclick="openModal()">Add your first task</button>
-  <p style="font-size:11px;color:var(--gray-300);margin-top:8px;">or press <kbd style="font-family:inherit;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:4px;padding:1px 5px;font-size:11px;">N</kbd></p>
+  <p style="font-size:11px;color:var(--gray-300);margin-top:8px;">or press <kbd style="font-family:inherit;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:4px;padding:1px 5px;font-size:11px;">C</kbd></p>
 </div>
 
 <!-- ── Floating Add Task button (mobile) ─────────────── -->
@@ -1017,6 +1028,41 @@
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
       <button class="btn-save" id="btnSave" onclick="saveTask()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Keyboard shortcuts overlay ────────────────────── -->
+<div class="overlay" id="shortcutsOverlay" onclick="if(event.target.id==='shortcutsOverlay')closeShortcuts()">
+  <div class="modal" style="width:400px">
+    <div class="modal-heading">Keyboard Shortcuts</div>
+    <table class="shortcuts-table">
+      <tbody>
+        <tr class="sc-section"><td colspan="2">Global</td></tr>
+        <tr><td><span class="sc-kbd">C</span></td><td>New task</td></tr>
+        <tr><td><span class="sc-kbd">?</span></td><td>Show shortcuts</td></tr>
+        <tr><td><span class="sc-kbd">⌘Z</span></td><td>Undo</td></tr>
+        <tr><td><span class="sc-kbd">⌘⇧Z</span></td><td>Redo</td></tr>
+        <tr><td><span class="sc-kbd">Esc</span></td><td>Close modal</td></tr>
+        <tr class="sc-section"><td colspan="2">Task modal</td></tr>
+        <tr><td><span class="sc-kbd">Enter</span></td><td>Save task</td></tr>
+        <tr><td><span class="sc-kbd">⌘↩</span></td><td>Save + create another</td></tr>
+        <tr><td><span class="sc-kbd">⌘⌫</span></td><td>Delete task (edit only)</td></tr>
+        <tr class="sc-section"><td colspan="2">Date presets (modal, not in field)</td></tr>
+        <tr><td><span class="sc-kbd">T</span></td><td>Today</td></tr>
+        <tr><td><span class="sc-kbd">M</span></td><td>Tomorrow</td></tr>
+        <tr><td><span class="sc-kbd">U</span></td><td>Upcoming</td></tr>
+        <tr><td><span class="sc-kbd">F</span></td><td>Future</td></tr>
+        <tr><td><span class="sc-kbd">S</span></td><td>Unscheduled</td></tr>
+        <tr class="sc-section"><td colspan="2">Priority (modal, not in field)</td></tr>
+        <tr><td><span class="sc-kbd">1</span></td><td>P1 High</td></tr>
+        <tr><td><span class="sc-kbd">2</span></td><td>P2 Medium</td></tr>
+        <tr><td><span class="sc-kbd">3</span></td><td>P3 Low</td></tr>
+        <tr><td><span class="sc-kbd">0</span></td><td>No priority</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeShortcuts()">Close</button>
     </div>
   </div>
 </div>
@@ -1810,6 +1856,15 @@ function doDel(e) {
   dbDelete(id);
   render();
 }
+function deleteEditingTask() {
+  if (!editingId) return;
+  const id = editingId;
+  closeModal();
+  tasks = tasks.filter(t => t.id !== id);
+  save();
+  dbDelete(id);
+  render();
+}
 
 // ══════════════════════════════════════════════════════════
 //  EDIT / SAVE
@@ -1947,6 +2002,9 @@ function openModal() {
   document.getElementById('overlay').classList.add('open');
   setTimeout(() => document.getElementById('fTitle').focus(), 60);
 }
+function showShortcuts() { document.getElementById('shortcutsOverlay').classList.add('open'); }
+function closeShortcuts() { document.getElementById('shortcutsOverlay').classList.remove('open'); }
+
 function closeModal() {
   document.activeElement?.blur();
   document.getElementById('overlay').classList.remove('open');
@@ -2079,14 +2137,42 @@ function hideToast() {
 //  KEYBOARD SHORTCUTS
 // ══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  const inField   = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
-  const modalOpen = document.getElementById('overlay').classList.contains('open');
-  if (e.key === 'Escape') { closeModal(); return; }
-  if (e.key === 'Enter' && modalOpen && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'BUTTON') {
-    e.preventDefault(); saveTask(); return;
+  const inField      = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
+  const modalOpen    = document.getElementById('overlay').classList.contains('open');
+  const shortcutsOpen = document.getElementById('shortcutsOverlay').classList.contains('open');
+
+  if (e.key === 'Escape') {
+    if (shortcutsOpen) { closeShortcuts(); return; }
+    closeModal(); return;
   }
-  if ((e.metaKey||e.ctrlKey) && e.key === 'k') { e.preventDefault(); openModal(); return; }
-  if (!inField && !e.metaKey && !e.ctrlKey && e.key === 'n') { openModal(); return; }
+
+  // Modal-specific shortcuts
+  if (modalOpen) {
+    if ((e.metaKey||e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveTask(); openModal(); return; }
+    if (e.key === 'Enter' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'BUTTON') {
+      e.preventDefault(); saveTask(); return;
+    }
+    if ((e.metaKey||e.ctrlKey) && (e.key === 'Delete' || e.key === 'Backspace') && editingId) { e.preventDefault(); deleteEditingTask(); return; }
+    if (!inField) {
+      if (e.key === '1') { setPriority(1); return; }
+      if (e.key === '2') { setPriority(2); return; }
+      if (e.key === '3') { setPriority(3); return; }
+      if (e.key === '0') { setPriority(null); return; }
+      if (e.key === 't' || e.key === 'T') { setPreset(0); return; }
+      if (e.key === 'm' || e.key === 'M') { setPreset(1); return; }
+      if (e.key === 'u' || e.key === 'U') { setPreset(3); return; }
+      if (e.key === 'f' || e.key === 'F') { setPreset(7); return; }
+      if (e.key === 's' || e.key === 'S') { setPreset(null); return; }
+    }
+  }
+
+  // Global shortcuts (outside modal)
+  if (!inField && !modalOpen && !shortcutsOpen) {
+    if (!e.metaKey && !e.ctrlKey && e.key === 'c') { openModal(); return; }
+    if (e.key === '?') { showShortcuts(); return; }
+  }
+
+  // Undo/redo (always, when not in a text field)
   if (!inField) {
     if ((e.metaKey||e.ctrlKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); undoLast(); return; }
     if ((e.metaKey||e.ctrlKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) { e.preventDefault(); redoLast(); return; }

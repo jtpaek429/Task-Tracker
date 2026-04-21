@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>mytodo.page</title>
+  <link rel="icon" type="image/svg+xml" href="mytodopagelogo.svg" />
+  <link rel="apple-touch-icon" href="mytodopagelogo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -41,11 +43,8 @@
       box-shadow: 0 1px 4px rgba(0,0,0,.05);
     }
     .header-left { display: flex; align-items: center; gap: 12px; }
-    .logo {
-      width: 32px; height: 32px; background: var(--red);
-      border-radius: 8px; display: flex; align-items: center; justify-content: center;
-    }
-    .logo svg { width: 16px; height: 16px; fill: #fff; }
+    .logo { width: 32px; height: 32px; }
+    .logo img { width: 32px; height: 32px; border-radius: 8px; display: block; }
     .brand h1  { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
     #appName[contenteditable] { outline: none; border-radius: 4px; padding: 0 3px; margin: 0 -3px; cursor: text; transition: background .15s; }
     #appName[contenteditable]:hover { background: var(--gray-100); }
@@ -480,12 +479,8 @@
     .auth-message.success { background: #dcfce7; color: #166534; display: block; }
 
     .auth-logo { text-align: center; margin-bottom: 20px; }
-    .auth-logo .big-logo {
-      width: 48px; height: 48px; background: var(--red);
-      border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
-      margin-bottom: 12px;
-    }
-    .auth-logo .big-logo svg { width: 24px; height: 24px; fill: #fff; }
+    .auth-logo .big-logo { margin-bottom: 12px; }
+    .auth-logo .big-logo img { width: 48px; height: 48px; border-radius: 12px; display: block; margin: 0 auto; }
     .auth-logo h2 { font-size: 20px; font-weight: 700; }
     .auth-logo p  { font-size: 13px; color: var(--gray-400); margin-top: 4px; }
 
@@ -620,7 +615,7 @@
 <header>
   <div class="header-left">
     <div class="logo">
-      <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      <img src="mytodopagelogo.svg" alt="mytodo.page logo" />
     </div>
     <div class="brand">
       <h1 id="appName" contenteditable="true" spellcheck="false"
@@ -766,7 +761,7 @@
   <div class="modal" style="width:400px">
     <div class="auth-logo">
       <div class="big-logo">
-        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        <img src="mytodopagelogo.svg" alt="mytodo.page logo" />
       </div>
       <h2>mytodo.page</h2>
       <p>Sign in to sync your tasks across devices</p>

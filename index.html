@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskFlow</title>
+  <title>mytodo.page</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -626,7 +626,7 @@
       <h1 id="appName" contenteditable="true" spellcheck="false"
           onblur="saveAppName()"
           onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
-          title="Click to rename">TaskFlow</h1>
+          title="Click to rename">mytodo.page</h1>
       <div class="sub" id="dateDisplay"></div>
     </div>
   </div>
@@ -768,7 +768,7 @@
       <div class="big-logo">
         <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
       </div>
-      <h2>TaskFlow</h2>
+      <h2>mytodo.page</h2>
       <p>Sign in to sync your tasks across devices</p>
     </div>
 
@@ -805,6 +805,9 @@
     <div class="modal-actions" style="justify-content:stretch">
       <button class="btn-save" id="authSubmitBtn" onclick="submitAuth()" style="width:100%">Sign In</button>
     </div>
+    <p style="text-align:center;font-size:11px;color:var(--gray-400);margin-top:16px">
+      By signing in, you agree to our <a href="/privacy.html" target="_blank" style="color:var(--gray-400)">Privacy Policy</a>
+    </p>
   </div>
 </div>
 
@@ -1088,7 +1091,7 @@ function saveCollapse() { localStorage.setItem('tf_collapse', JSON.stringify(col
 
 function saveAppName() {
   const el = document.getElementById('appName');
-  const name = el.textContent.trim() || 'TaskFlow';
+  const name = el.textContent.trim() || 'mytodo.page';
   el.textContent = name;
   localStorage.setItem('tf_appname', name);
   document.title = name;

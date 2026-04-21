@@ -672,7 +672,19 @@
         <div class="task-list" id="list-overdue"></div>
       </div>
     </div>
-    <div class="task-list" id="list-due-soon"></div>
+    <div id="dueSoonTodayBox" style="display:none">
+      <div class="future-group">
+        <div class="future-group-label">Today</div>
+        <div class="task-list" id="list-due-today"></div>
+      </div>
+    </div>
+    <div id="dueSoonTomorrowBox" style="display:none">
+      <div class="future-group">
+        <div class="future-group-label">Tomorrow</div>
+        <div class="task-list" id="list-due-tomorrow"></div>
+      </div>
+    </div>
+    <div id="dueSoonEmpty" class="empty-msg" style="display:none">Nothing here</div>
   </section>
 
   <!-- Upcoming ── col 2, row 1 -->
@@ -1114,9 +1126,18 @@ function render() {
   const _doneTotal = G.done.length;
   G.done = G.done.filter(t => !t.completedAt || t.completedAt.slice(0,10) >= _cutoffISO);
 
+  // Split due-soon into today vs tomorrow
+  const dueToday    = G['due-soon'].filter(t => daysDiff(t.due) === 0);
+  const dueTomorrow = G['due-soon'].filter(t => daysDiff(t.due) === 1);
+
   // Fill lists
-  fill('list-overdue',  G.overdue,       false);
-  fill('list-due-soon', G['due-soon'],   false);
+  fill('list-overdue',     G.overdue,    false);
+  fill('list-due-today',   dueToday,     false);
+  fill('list-due-tomorrow',dueTomorrow,  false);
+
+  document.getElementById('dueSoonTodayBox').style.display    = dueToday.length    ? '' : 'none';
+  document.getElementById('dueSoonTomorrowBox').style.display = dueTomorrow.length ? '' : 'none';
+  document.getElementById('dueSoonEmpty').style.display       = (!dueToday.length && !dueTomorrow.length) ? '' : 'none';
   fill('list-upcoming', G.upcoming,      false);
   fill('list-f1w',      G.f1w,           false);
   fill('list-f2w',      G.f2w,           false);

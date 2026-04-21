@@ -865,6 +865,14 @@ const sb = (SUPABASE_URL !== 'YOUR_SUPABASE_URL')
   : null;
 
 // ══════════════════════════════════════════════════════════
+//  DEV CONFIG — auto-login on Vercel preview branches
+//  Create a throwaway Supabase account and fill in below.
+// ══════════════════════════════════════════════════════════
+const DEV_AUTO_LOGIN    = location.hostname.endsWith('.vercel.app');
+const DEV_TEST_EMAIL    = 'YOUR_TEST_EMAIL';
+const DEV_TEST_PASSWORD = 'YOUR_TEST_PASSWORD';
+
+// ══════════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════════
 let tasks      = JSON.parse(localStorage.getItem('taskflow_v3') || '[]');
@@ -978,6 +986,9 @@ async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     onSignedIn(session.user);
+  } else if (DEV_AUTO_LOGIN && DEV_TEST_EMAIL !== 'YOUR_TEST_EMAIL') {
+    const { error } = await sb.auth.signInWithPassword({ email: DEV_TEST_EMAIL, password: DEV_TEST_PASSWORD });
+    if (error) { console.warn('Dev auto-login failed:', error.message); document.getElementById('authOverlay').classList.add('open'); }
   } else {
     document.getElementById('authOverlay').classList.add('open');
   }

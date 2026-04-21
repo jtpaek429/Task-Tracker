@@ -672,6 +672,81 @@
         font-size: 16px;
       }
     }
+
+    /* ── Bulk selection ───────────────────────────────── */
+    .task-card.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(59,130,246,.18);
+      background: #eff6ff;
+    }
+    .task-card.selected .card-actions { opacity: 1; }
+
+    .bulk-bar {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(calc(100% + 40px));
+      background: var(--gray-900); color: #fff;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.28);
+      z-index: 500; min-width: 380px; max-width: 92vw;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      overflow: hidden;
+    }
+    .bulk-bar.open { transform: translateX(-50%) translateY(0); }
+
+    .bulk-bar-main {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 14px;
+    }
+    .bulk-clear {
+      background: rgba(255,255,255,.12); color: #fff; border: none;
+      border-radius: 6px; width: 26px; height: 26px; flex-shrink: 0;
+      font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .bulk-clear:hover { background: rgba(255,255,255,.22); }
+    .bulk-count { font-size: 13px; font-weight: 600; flex: 1; white-space: nowrap; }
+    .bulk-actions { display: flex; gap: 6px; }
+    .bulk-btn {
+      background: rgba(255,255,255,.12); color: #fff; border: none;
+      border-radius: 8px; padding: 6px 12px;
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: background .15s; white-space: nowrap;
+    }
+    .bulk-btn:hover { background: rgba(255,255,255,.22); }
+    .bulk-btn.active { background: var(--blue); }
+    .bulk-btn-del:hover { background: rgba(219,64,53,.65); }
+
+    .bulk-panel {
+      display: none; padding: 10px 14px 14px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      gap: 6px; flex-wrap: wrap; align-items: center;
+    }
+    .bulk-panel.open { display: flex; }
+    .bulk-panel .dp {
+      background: rgba(255,255,255,.12); color: #fff;
+      border-color: transparent;
+    }
+    .bulk-panel .dp:hover { border-color: rgba(255,255,255,.35); color: #fff; background: rgba(255,255,255,.2); }
+    .bulk-panel input[type="date"] {
+      background: rgba(255,255,255,.12); color: #fff;
+      border: 1.5px solid rgba(255,255,255,.2); border-radius: 8px;
+      padding: 5px 10px; font-size: 12px; font-family: inherit; cursor: pointer;
+    }
+    .bulk-panel input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    .bulk-panel .prio-btn {
+      background: rgba(255,255,255,.12); color: rgba(255,255,255,.8);
+      border-color: transparent;
+    }
+    .bulk-panel .prio-btn:hover { border-color: rgba(255,255,255,.35); color: #fff; }
+    .bulk-panel-del { align-items: center; }
+    .bulk-panel-del span { font-size: 13px; flex: 1; }
+    .bulk-panel-del .del-no  {
+      background: rgba(255,255,255,.12); color: #fff; border-color: transparent;
+    }
+    .bulk-panel-del .del-no:hover  { background: rgba(255,255,255,.22); }
+    .bulk-panel-del .del-yes { background: var(--red); color: #fff; border-color: transparent; }
+    .bulk-panel-del .del-yes:hover { background: #c23028; }
   </style>
 </head>
 <body>
@@ -953,6 +1028,38 @@
   <span class="toast-kbd">⌘Z</span>
 </div>
 
+<!-- ── Bulk action bar ────────────────────────────────── -->
+<div id="bulk-bar" class="bulk-bar">
+  <div class="bulk-bar-main">
+    <button class="bulk-clear" onclick="clearSelection()" title="Clear selection">✕</button>
+    <span class="bulk-count" id="bulk-count">0 tasks selected</span>
+    <div class="bulk-actions">
+      <button class="bulk-btn" id="bulk-btn-date"     onclick="toggleBulkPanel('date')">📅 Date</button>
+      <button class="bulk-btn" id="bulk-btn-priority" onclick="toggleBulkPanel('priority')">⚑ Priority</button>
+      <button class="bulk-btn bulk-btn-del"            onclick="toggleBulkPanel('delete')">🗑 Delete</button>
+    </div>
+  </div>
+  <div class="bulk-panel" id="bulk-panel-date">
+    <button class="dp" onclick="bulkSetDate(0)">Today</button>
+    <button class="dp" onclick="bulkSetDate(1)">Tomorrow</button>
+    <button class="dp" onclick="bulkSetDate(3)">Upcoming</button>
+    <button class="dp" onclick="bulkSetDate(7)">Future</button>
+    <button class="dp" onclick="bulkSetDate(null)">Unscheduled</button>
+    <input type="date" id="bulk-date-input" onchange="bulkSetDateCustom(this.value)" />
+  </div>
+  <div class="bulk-panel" id="bulk-panel-priority">
+    <button class="prio-btn" data-prio="1" onclick="bulkSetPriority(1)">P1 High</button>
+    <button class="prio-btn" data-prio="2" onclick="bulkSetPriority(2)">P2 Medium</button>
+    <button class="prio-btn" data-prio="3" onclick="bulkSetPriority(3)">P3 Low</button>
+    <button class="prio-btn" data-prio=""  onclick="bulkSetPriority(null)">None</button>
+  </div>
+  <div class="bulk-panel bulk-panel-del" id="bulk-panel-delete">
+    <span>Delete <strong id="bulk-del-count">0</strong> task(s)?</span>
+    <button class="del-no"  onclick="hideBulkPanel()">Cancel</button>
+    <button class="del-yes" onclick="bulkDoDelete()">Delete</button>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════
 //  SUPABASE CONFIG
@@ -990,6 +1097,7 @@ let delConfirmId = null;
 let draggingId   = null;
 let undoStack    = [];
 let redoStack    = [];
+let selectedIds  = new Set();
 let toastTimer   = null;
 
 const CELEBRATE = ['🎉','🎊','🎈','🥳'];
@@ -1425,22 +1533,40 @@ function buildCard(task, compact) {
   const isDel   = delConfirmId === task.id;
 
   const card = document.createElement('div');
-  card.className = `task-card${task.completed ? ' done' : ''}`;
+  card.className = `task-card${task.completed ? ' done' : ''}${selectedIds.has(task.id) ? ' selected' : ''}`;
   card.dataset.taskId = task.id;
 
   const isTouch = window.matchMedia('(hover: none)').matches;
+  let didDrag = false;
   if (!task.completed && !isTouch) {
     card.draggable = true;
     card.addEventListener('dragstart', e => {
+      didDrag = true;
       draggingId = task.id;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', task.id);
-      setTimeout(() => card.classList.add('dragging'), 0);
+      setTimeout(() => {
+        card.classList.add('dragging');
+        if (selectedIds.has(task.id) && selectedIds.size > 1) {
+          document.querySelectorAll('.task-card.selected').forEach(c => c.classList.add('dragging'));
+        }
+      }, 0);
     });
     card.addEventListener('dragend', () => {
-      card.classList.remove('dragging');
+      document.querySelectorAll('.task-card.dragging').forEach(c => c.classList.remove('dragging'));
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
       draggingId = null;
+      setTimeout(() => { didDrag = false; }, 0);
+    });
+  }
+
+  if (!isTouch) {
+    card.addEventListener('click', e => {
+      if (didDrag) return;
+      if (delConfirmId === task.id) return;
+      if (e.target.closest('.check, a, button, .card-desc, .del-confirm')) return;
+      if (e.shiftKey || selectedIds.size > 0) { toggleSelection(task.id); return; }
+      startEdit(e, task.id);
     });
   }
 
@@ -1581,6 +1707,93 @@ function redoLast() {
     else delete t.completedAt;
     save(); dbUpsert(t); render();
   }
+}
+
+// ══════════════════════════════════════════════════════════
+//  MULTI-SELECT / BULK ACTIONS
+// ══════════════════════════════════════════════════════════
+function toggleSelection(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  const card = document.querySelector(`[data-task-id="${id}"]`);
+  if (card) card.classList.toggle('selected', selectedIds.has(id));
+  updateBulkBar();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('.task-card.selected').forEach(c => c.classList.remove('selected'));
+  hideBulkPanel();
+  document.getElementById('bulk-bar').classList.remove('open');
+}
+
+function updateBulkBar() {
+  const bar   = document.getElementById('bulk-bar');
+  const count = selectedIds.size;
+  if (count === 0) { bar.classList.remove('open'); return; }
+  bar.classList.add('open');
+  document.getElementById('bulk-count').textContent = `${count} task${count !== 1 ? 's' : ''} selected`;
+  document.getElementById('bulk-del-count').textContent = count;
+}
+
+function toggleBulkPanel(name) {
+  const names = ['date', 'priority', 'delete'];
+  names.forEach(p => {
+    const el  = document.getElementById(`bulk-panel-${p}`);
+    const btn = document.getElementById(`bulk-btn-${p}`);
+    const opening = p === name && !el.classList.contains('open');
+    el.classList.toggle('open', opening);
+    if (btn) btn.classList.toggle('active', opening);
+  });
+}
+
+function hideBulkPanel() {
+  ['date', 'priority', 'delete'].forEach(p => {
+    document.getElementById(`bulk-panel-${p}`).classList.remove('open');
+    const btn = document.getElementById(`bulk-btn-${p}`);
+    if (btn) btn.classList.remove('active');
+  });
+}
+
+function bulkSetDate(days) {
+  const due = days !== null ? toISO(addDays(days)) : '';
+  selectedIds.forEach(id => {
+    const t = tasks.find(t => t.id === id);
+    if (!t) return;
+    t.due = due;
+    dbUpsert(t);
+  });
+  save(); render(); clearSelection();
+}
+
+function bulkSetDateCustom(val) {
+  if (!val) return;
+  selectedIds.forEach(id => {
+    const t = tasks.find(t => t.id === id);
+    if (!t) return;
+    t.due = val;
+    dbUpsert(t);
+  });
+  save(); render(); clearSelection();
+  document.getElementById('bulk-date-input').value = '';
+}
+
+function bulkSetPriority(priority) {
+  selectedIds.forEach(id => {
+    const t = tasks.find(t => t.id === id);
+    if (!t) return;
+    t.priority = priority;
+    dbUpsert(t);
+  });
+  save(); render(); clearSelection();
+}
+
+function bulkDoDelete() {
+  [...selectedIds].forEach(id => {
+    tasks = tasks.filter(t => t.id !== id);
+    dbDelete(id);
+  });
+  save(); render(); clearSelection();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1781,14 +1994,17 @@ function initDropZone(el, key, stopProp) {
     if (stopProp) e.stopPropagation();
     el.classList.remove('drag-over');
     if (!draggingId || !DROP_DATE[key]) return;
-    const t = tasks.find(t => t.id === draggingId);
-    if (t) {
-      t.due = DROP_DATE[key]();
-      draggingId = null;
-      save();
-      dbUpsert(t);
-      render();
-    }
+    const due = DROP_DATE[key]();
+    const isMulti = selectedIds.has(draggingId) && selectedIds.size > 1;
+    const ids = isMulti ? [...selectedIds] : [draggingId];
+    ids.forEach(id => {
+      const t = tasks.find(t => t.id === id);
+      if (t) { t.due = due; dbUpsert(t); }
+    });
+    draggingId = null;
+    save();
+    render();
+    if (isMulti) clearSelection();
   });
 }
 

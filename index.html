@@ -1725,7 +1725,7 @@ function toggle(e, id) {
   save();
   dbUpsert(t);
 
-  if (!wasCompleted) {
+  if (!prev.completed) {
     const card = document.querySelector(`[data-task-id="${id}"]`);
     if (card) {
       card.classList.add('completing');

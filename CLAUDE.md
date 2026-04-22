@@ -13,11 +13,18 @@ A personal task tracker web app. Single `index.html` + `privacy.html`, no framew
 - Email/password + Google OAuth (both configured in Supabase)
 - Supabase anon key is safe in public code — RLS enforces per-user data isolation
 - Apple OAuth skipped (requires $99/year Apple Developer account)
+- Password reset: "Forgot password?" link → email → `PASSWORD_RECOVERY` event → reset form → `updateUser({password})`
+- Email confirmation: PKCE flow (Supabase default); `onAuthStateChange` registered before `getSession()` so `PASSWORD_RECOVERY` is caught during code exchange
+- `_inRecoveryFlow` flag prevents the `SIGNED_IN` event (fired by Supabase right after `PASSWORD_RECOVERY`) from signing the user in and bypassing the reset form
+- Friendly error messages via `friendlyAuthError()` for rate-limit and other auth errors
 
 ## Supabase setup
 - Project URL and anon key are hardcoded at the top of the `<script>` block in `index.html`
 - `tasks` table with RLS policy: `auth.uid() = user_id`
-- Redirect URLs configured for `https://mytodo.page/**` and Vercel preview URLs
+- **Site URL**: `https://mytodo.page` (no trailing `/**` — that goes in Redirect URLs only)
+- **Redirect URLs**: `https://mytodo.page/**`, `https://*.vercel.app/**`, `http://localhost:*/**`
+- **SMTP**: Resend (`smtp.resend.com:465`, username `resend`, password = Resend API key, sender `noreply@mytodo.page`) — removes Supabase's 2 emails/hour limit
+- **Edge Function**: `delete-account` — JWT verification disabled; uses `SERVICE_ROLE_KEY` secret (note: `SUPABASE_` prefix not allowed for secret names); deletes user's tasks first (no `ON DELETE CASCADE` on FK), then deletes auth user
 
 ```sql
 create table tasks (
@@ -67,7 +74,10 @@ create policy "own tasks only" on tasks
 - **Undo/redo**: covers all mutations — create, edit, delete, complete/uncomplete, priority change, due date change, and bulk actions; toast button triggers undo
 - **Empty state**: when a user has no active tasks, the grid is hidden and a "You're all caught up!" prompt is shown
 - **Logo**: `mytodopagelogo.svg` — used in header, auth overlay, favicon, apple-touch-icon, and privacy page
-- **Dev mode**: generates 5 test tasks (tagged `_dev:true`) and can bulk-delete them
+- **Dev mode**: generates 5 test tasks (tagged `_dev:true`) and can bulk-delete them; button hidden by default, shown only for `jpaek429@gmail.com` and `test@test.com`
+- **User area**: email button with dropdown (Sign out + Delete account…); dropdown closes on Esc or outside click
+- **Account deletion**: dropdown → confirmation modal → Edge Function deletes tasks + auth user → sign out → "Your account has been deleted." banner on auth overlay
+- **Auth views**: sign-in, sign-up, forgot-password, reset-password — all within the same auth overlay; `showAuthView(view)` switches between them
 
 ## Mobile (≤700px)
 - Single-column stacked layout
@@ -82,7 +92,6 @@ create policy "own tasks only" on tasks
 - Filter bar (search is built; per-section or priority filtering is not)
 - Dark mode
 - Recurring tasks
-- Account deletion flow (needed before opening to public users)
 - Completion micro-animation (checkmark flash / strikethrough)
 - Swipe right to complete task on mobile
 - Pull-to-refresh

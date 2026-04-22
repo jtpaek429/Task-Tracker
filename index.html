@@ -61,6 +61,14 @@
     .btn-dev:hover { background: var(--gray-100); }
     .btn-dev.active { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
 
+    .btn-shortcuts {
+      font-size: 12px; padding: 6px 12px;
+      border: 1.5px solid var(--gray-200); border-radius: 6px;
+      background: none; color: var(--gray-500);
+      cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    .btn-shortcuts:hover { background: var(--gray-100); color: var(--gray-700); }
+
     .btn-add {
       background: var(--red); color: #fff; border: none;
       padding: 8px 16px; border-radius: 8px;
@@ -71,7 +79,7 @@
     .btn-add:hover { background: #c23028; }
     .btn-add { position: relative; }
     .btn-add::after {
-      content: 'N';
+      content: 'C';
       position: absolute; top: calc(100% + 6px); right: 0;
       background: var(--gray-900); color: #fff;
       font-size: 10px; font-weight: 600;
@@ -243,7 +251,12 @@
       font-size: 11px; font-weight: 700;
       color: var(--red); text-transform: uppercase; letter-spacing: .5px;
       background: #fee2e2; border-bottom: 1px solid #fecaca;
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; gap: 6px;
     }
+    .overdue-label:hover { background: #fecaca; }
+    .overdue-label .chevron { font-size: 13px; transition: transform .2s; }
+    .overdue-label .chevron.closed { transform: rotate(-90deg); }
 
     /* ── Future sub-groups ────────────────────────────── */
     .future-group { border-top: 1px solid var(--gray-100); transition: background .15s; }
@@ -252,7 +265,12 @@
       padding: 10px 14px 4px;
       font-size: 11px; font-weight: 700;
       color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px;
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; gap: 5px;
     }
+    .future-group-label:hover { color: var(--gray-600); }
+    .future-group-label .chevron { font-size: 12px; transition: transform .2s; }
+    .future-group-label .chevron.closed { transform: rotate(-90deg); }
     .future-group.drag-over {
       background: #eff6ff;
       outline: 2px dashed #93c5fd;
@@ -764,6 +782,15 @@
     .bulk-panel .prio-btn:hover { border-color: rgba(255,255,255,.35); color: #fff; }
     .bulk-panel-del { align-items: center; }
     .bulk-panel-del span { font-size: 13px; flex: 1; }
+    .bulk-shortcuts-hint {
+      padding: 5px 14px 8px;
+      font-size: 11px; color: rgba(255,255,255,.38);
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .bulk-shortcuts-hint kbd {
+      background: rgba(255,255,255,.12); border-radius: 3px;
+      padding: 1px 4px; font-family: inherit; font-size: 10px;
+    }
     .bulk-panel-del .del-no  {
       background: rgba(255,255,255,.12); color: #fff; border-color: transparent;
     }
@@ -860,6 +887,7 @@
       <span class="user-email" id="userEmailDisplay"></span>
       <button class="btn-signout" onclick="signOut()">Sign out</button>
     </div>
+    <button class="btn-shortcuts" onclick="showShortcuts()">? Shortcuts</button>
     <button class="btn-add" onclick="openModal()">
       <svg viewBox="0 0 14 14" fill="none" width="12" height="12">
         <path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
@@ -884,51 +912,72 @@
 
   <!-- Due Soon ── col 1, row 1 -->
   <section class="panel panel-due-soon" data-drop="due-soon">
-    <div class="panel-header">
+    <div class="panel-header clickable" onclick="toggleCollapse('due-soon')">
       <div class="panel-title">
+        <span class="chevron" id="chev-due-soon">▾</span>
         Due Soon
         <span class="panel-sub">Today &amp; Tomorrow</span>
       </div>
       <div class="header-right-group">
         <span class="badge" id="badge-due-soon">0</span>
-        <button class="btn-plus" onclick="quickAdd('due-soon')" title="Add task">+</button>
+        <button class="btn-plus" onclick="event.stopPropagation(); quickAdd('due-soon')" title="Add task">+</button>
       </div>
     </div>
-    <!-- Overdue subsection (hidden when empty) -->
-    <div id="overdueBox" style="display:none">
-      <div class="overdue-box">
-        <div class="overdue-label">⚠ Overdue</div>
-        <div class="task-list" id="list-overdue"></div>
+    <div class="collapse-body" id="body-due-soon">
+      <!-- Overdue subsection (hidden when empty) -->
+      <div id="overdueBox" style="display:none">
+        <div class="overdue-box">
+          <div class="overdue-label" onclick="toggleCollapse('overdue')">
+            <span class="chevron" id="chev-overdue">▾</span>
+            ⚠ Overdue
+          </div>
+          <div class="collapse-body" id="body-overdue">
+            <div class="task-list" id="list-overdue"></div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div id="dueSoonTodayBox" style="display:none">
-      <div class="future-group" id="grp-due-today" data-drop="due-today">
-        <div class="future-group-label">Today</div>
-        <div class="task-list" id="list-due-today"></div>
+      <div id="dueSoonTodayBox" style="display:none">
+        <div class="future-group" id="grp-due-today" data-drop="due-today">
+          <div class="future-group-label" onclick="toggleCollapse('due-today')">
+            <span class="chevron" id="chev-due-today">▾</span>
+            <span><u>T</u>oday</span>
+          </div>
+          <div class="collapse-body" id="body-due-today">
+            <div class="task-list" id="list-due-today"></div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div id="dueSoonTomorrowBox" style="display:none">
-      <div class="future-group" id="grp-due-tomorrow" data-drop="due-tomorrow">
-        <div class="future-group-label">Tomorrow</div>
-        <div class="task-list" id="list-due-tomorrow"></div>
+      <div id="dueSoonTomorrowBox" style="display:none">
+        <div class="future-group" id="grp-due-tomorrow" data-drop="due-tomorrow">
+          <div class="future-group-label" onclick="toggleCollapse('due-tomorrow')">
+            <span class="chevron" id="chev-due-tomorrow">▾</span>
+            <span>To<u>m</u>orrow</span>
+          </div>
+          <div class="collapse-body" id="body-due-tomorrow">
+            <div class="task-list" id="list-due-tomorrow"></div>
+          </div>
+        </div>
       </div>
+      <div id="dueSoonEmpty" class="empty-msg" style="display:none">Nothing here</div>
     </div>
-    <div id="dueSoonEmpty" class="empty-msg" style="display:none">Nothing here</div>
   </section>
 
   <!-- Upcoming ── col 2, row 1 -->
   <section class="panel panel-upcoming" data-drop="upcoming">
-    <div class="panel-header">
+    <div class="panel-header clickable" onclick="toggleCollapse('upcoming')">
       <div class="panel-title">
-        Upcoming
+        <span class="chevron" id="chev-upcoming">▾</span>
+        <span><u>U</u>pcoming</span>
         <span class="panel-sub">2 – 5 Days</span>
       </div>
       <div class="header-right-group">
         <span class="badge" id="badge-upcoming">0</span>
-        <button class="btn-plus" onclick="quickAdd('upcoming')" title="Add task">+</button>
+        <button class="btn-plus" onclick="event.stopPropagation(); quickAdd('upcoming')" title="Add task">+</button>
       </div>
     </div>
-    <div class="task-list" id="list-upcoming"></div>
+    <div class="collapse-body" id="body-upcoming">
+      <div class="task-list" id="list-upcoming"></div>
+    </div>
   </section>
 
   <!-- Future ── col 3, rows 1–2 (collapsible) -->
@@ -936,7 +985,7 @@
     <div class="panel-header clickable" onclick="toggleCollapse('future')">
       <div class="panel-title">
         <span class="chevron" id="chev-future">▾</span>
-        Future
+        <span><u>F</u>uture</span>
         <span class="panel-sub">1+ Weeks</span>
       </div>
       <div class="header-right-group">
@@ -946,16 +995,31 @@
     </div>
     <div class="collapse-body" id="body-future">
       <div class="future-group" id="grp-f1w" data-drop="f1w">
-        <div class="future-group-label">1 Week Out</div>
-        <div class="task-list" id="list-f1w"></div>
+        <div class="future-group-label" onclick="toggleCollapse('f1w')">
+          <span class="chevron" id="chev-f1w">▾</span>
+          1 Week Out
+        </div>
+        <div class="collapse-body" id="body-f1w">
+          <div class="task-list" id="list-f1w"></div>
+        </div>
       </div>
       <div class="future-group" id="grp-f2w" data-drop="f2w">
-        <div class="future-group-label">2 Weeks Out</div>
-        <div class="task-list" id="list-f2w"></div>
+        <div class="future-group-label" onclick="toggleCollapse('f2w')">
+          <span class="chevron" id="chev-f2w">▾</span>
+          2 Weeks Out
+        </div>
+        <div class="collapse-body" id="body-f2w">
+          <div class="task-list" id="list-f2w"></div>
+        </div>
       </div>
       <div class="future-group" id="grp-f1m" data-drop="f1m">
-        <div class="future-group-label">1+ Month</div>
-        <div class="task-list" id="list-f1m"></div>
+        <div class="future-group-label" onclick="toggleCollapse('f1m')">
+          <span class="chevron" id="chev-f1m">▾</span>
+          1+ Month
+        </div>
+        <div class="collapse-body" id="body-f1m">
+          <div class="task-list" id="list-f1m"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -965,7 +1029,7 @@
     <div class="panel-header clickable" onclick="toggleCollapse('unscheduled')">
       <div class="panel-title">
         <span class="chevron" id="chev-unscheduled">▾</span>
-        Unscheduled
+        <span>Un<u>s</u>cheduled</span>
         <span class="panel-sub">No due date</span>
       </div>
       <div class="header-right-group">
@@ -1076,9 +1140,9 @@
     <div class="fg">
       <label>Priority</label>
       <div class="priority-picker">
-        <button type="button" class="prio-btn" data-prio="1" onclick="setPriority(1)">P1 High</button>
-        <button type="button" class="prio-btn" data-prio="2" onclick="setPriority(2)">P2 Medium</button>
-        <button type="button" class="prio-btn" data-prio="3" onclick="setPriority(3)">P3 Low</button>
+        <button type="button" class="prio-btn" data-prio="1" onclick="setPriority(1)">P<u>1</u> High</button>
+        <button type="button" class="prio-btn" data-prio="2" onclick="setPriority(2)">P<u>2</u> Medium</button>
+        <button type="button" class="prio-btn" data-prio="3" onclick="setPriority(3)">P<u>3</u> Low</button>
         <button type="button" class="prio-btn" data-prio=""  onclick="setPriority(null)">None</button>
       </div>
     </div>
@@ -1086,11 +1150,11 @@
     <div class="fg">
       <label>Due date</label>
       <div class="date-presets">
-        <button type="button" class="dp"          data-pkey="td"  onclick="setPreset(0)">Today</button>
-        <button type="button" class="dp"          data-pkey="tm"  onclick="setPreset(1)">Tomorrow</button>
-        <button type="button" class="dp"          data-pkey="up"  onclick="setPreset(3)">Upcoming</button>
-        <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)">Future</button>
-        <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Unscheduled</button>
+        <button type="button" class="dp"          data-pkey="td"  onclick="setPreset(0)"><u>T</u>oday</button>
+        <button type="button" class="dp"          data-pkey="tm"  onclick="setPreset(1)">To<u>m</u>orrow</button>
+        <button type="button" class="dp"          data-pkey="up"  onclick="setPreset(3)"><u>U</u>pcoming</button>
+        <button type="button" class="dp"          data-pkey="fu"  onclick="setPreset(7)"><u>F</u>uture</button>
+        <button type="button" class="dp dp-unscheduled" data-pkey="tr" onclick="setPreset(null)">Un<u>s</u>cheduled</button>
       </div>
       <div class="date-input-wrap">
         <input type="text" id="fDueText" placeholder="e.g. today, next friday, apr 25…" autocomplete="off" oninput="onDueTextInput()" />
@@ -1130,16 +1194,21 @@
         <tr><td><span class="sc-kbd">⌘↩</span></td><td>Save + create another</td></tr>
         <tr><td><span class="sc-kbd">⌘⌫</span></td><td>Delete task (edit only)</td></tr>
         <tr class="sc-section"><td colspan="2">Date presets (modal, not in field)</td></tr>
-        <tr><td><span class="sc-kbd">T</span></td><td>Today</td></tr>
-        <tr><td><span class="sc-kbd">M</span></td><td>Tomorrow</td></tr>
-        <tr><td><span class="sc-kbd">U</span></td><td>Upcoming</td></tr>
-        <tr><td><span class="sc-kbd">F</span></td><td>Future</td></tr>
-        <tr><td><span class="sc-kbd">S</span></td><td>Unscheduled</td></tr>
+        <tr><td><span class="sc-kbd">T</span></td><td><u>T</u>oday</td></tr>
+        <tr><td><span class="sc-kbd">M</span></td><td>To<u>m</u>orrow</td></tr>
+        <tr><td><span class="sc-kbd">U</span></td><td><u>U</u>pcoming</td></tr>
+        <tr><td><span class="sc-kbd">F</span></td><td><u>F</u>uture</td></tr>
+        <tr><td><span class="sc-kbd">S</span></td><td>Un<u>s</u>cheduled</td></tr>
         <tr class="sc-section"><td colspan="2">Priority (modal, not in field)</td></tr>
         <tr><td><span class="sc-kbd">1</span></td><td>P1 High</td></tr>
         <tr><td><span class="sc-kbd">2</span></td><td>P2 Medium</td></tr>
         <tr><td><span class="sc-kbd">3</span></td><td>P3 Low</td></tr>
         <tr><td><span class="sc-kbd">0</span></td><td>No priority</td></tr>
+        <tr class="sc-section"><td colspan="2">Multi-select (⌘+click to select)</td></tr>
+        <tr><td><span class="sc-kbd">T M U F S</span></td><td>Set date (same as modal)</td></tr>
+        <tr><td><span class="sc-kbd">1 2 3 0</span></td><td>Set priority (same as modal)</td></tr>
+        <tr><td><span class="sc-kbd">⌘⌫</span></td><td>Delete selected</td></tr>
+        <tr><td><span class="sc-kbd">Esc</span></td><td>Clear selection</td></tr>
       </tbody>
     </table>
     <div class="modal-actions">
@@ -1199,6 +1268,12 @@
     <button class="del-no"  onclick="hideBulkPanel()">Cancel</button>
     <button class="del-yes" onclick="bulkDoDelete()">Delete</button>
   </div>
+  <div class="bulk-shortcuts-hint">
+    <span><kbd>T</kbd><kbd>M</kbd><kbd>U</kbd><kbd>F</kbd><kbd>S</kbd> date</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>0</kbd> priority</span>
+    <span><kbd>⌘⌫</kbd> delete</span>
+    <span><kbd>Esc</kbd> clear</span>
+  </div>
 </div>
 
 <script>
@@ -1226,7 +1301,8 @@ const DEV_TEST_PASSWORD = 'test';
 //  STATE
 // ══════════════════════════════════════════════════════════
 let tasks      = JSON.parse(localStorage.getItem('taskflow_v3') || '[]');
-let collapsed  = JSON.parse(localStorage.getItem('tf_collapse')  || '{"future":false,"done":true,"unscheduled":true}');
+const COLLAPSE_DEFAULTS = {"due-soon":false,"upcoming":false,"future":false,"done":true,"unscheduled":true,"overdue":false,"due-today":false,"due-tomorrow":false,"f1w":false,"f2w":false,"f1m":false};
+let collapsed = Object.assign({}, COLLAPSE_DEFAULTS, JSON.parse(localStorage.getItem('tf_collapse') || '{}'));
 let devDateStr = localStorage.getItem('tf_devdate') || null;
 let devModeOn  = !!devDateStr;
 
@@ -1774,16 +1850,16 @@ function toggleDesc(e) { e.stopPropagation(); e.currentTarget.classList.toggle('
 //  COLLAPSE
 // ══════════════════════════════════════════════════════════
 function applyCollapse() {
-  ['future','done','unscheduled'].forEach(key => {
+  Object.keys(COLLAPSE_DEFAULTS).forEach(key => {
     const body = document.getElementById(`body-${key}`);
     const chev = document.getElementById(`chev-${key}`);
     if (!body) return;
     if (collapsed[key]) {
       body.classList.add('closed');
-      chev.classList.add('closed');
+      if (chev) chev.classList.add('closed');
     } else {
       body.classList.remove('closed');
-      chev.classList.remove('closed');
+      if (chev) chev.classList.remove('closed');
     }
   });
 }
@@ -2470,6 +2546,18 @@ document.addEventListener('keydown', e => {
     if (!e.metaKey && !e.ctrlKey && e.key === '/') { e.preventDefault(); openSearch(); return; }
     if (e.key === '?') { showShortcuts(); return; }
     if ((e.metaKey||e.ctrlKey) && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) { e.preventDefault(); bulkDoDelete(); return; }
+    // Bulk shortcuts (when tasks are selected)
+    if (selectedIds.size > 0 && !e.metaKey && !e.ctrlKey) {
+      if (e.key === 't' || e.key === 'T') { bulkSetDate(0);    return; }
+      if (e.key === 'm' || e.key === 'M') { bulkSetDate(1);    return; }
+      if (e.key === 'u' || e.key === 'U') { bulkSetDate(3);    return; }
+      if (e.key === 'f' || e.key === 'F') { bulkSetDate(7);    return; }
+      if (e.key === 's' || e.key === 'S') { bulkSetDate(null); return; }
+      if (e.key === '1') { bulkSetPriority(1);    return; }
+      if (e.key === '2') { bulkSetPriority(2);    return; }
+      if (e.key === '3') { bulkSetPriority(3);    return; }
+      if (e.key === '0') { bulkSetPriority(null); return; }
+    }
   }
 
   // Undo/redo (always, when not in a text field)

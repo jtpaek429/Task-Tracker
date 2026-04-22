@@ -26,7 +26,7 @@ create table tasks (
   title        text not null,
   description  text,
   due          text,
-  link         text,
+  link         text,          -- legacy; removed from modal UI, still in schema
   completed    boolean default false,
   completed_at timestamptz,
   created_at   timestamptz default now(),
@@ -54,8 +54,17 @@ create policy "own tasks only" on tasks
 - **Future subsections**: 1 Week Out / 2 Weeks Out / 1+ Month always visible, no "Nothing here" placeholder (50px min-height preserved for drag targets)
 - **Unscheduled** (formerly "Triage"): full-width, auto-collapses when empty, auto-expands when tasks are present
 - **Preset pills** in task modal: Today (0 days), Tomorrow (1 day), Upcoming (3 days), Future (7 days), Unscheduled — colored to match their section
+- **Date input**: free-text NLP field (e.g. "today", "next friday", "apr 25") with a calendar icon picker overlay; no raw `<input type="date">` visible by default
 - **Task priorities**: P1 High (red), P2 Medium (amber), P3 Low (blue), or none — set in modal, shown as badge on card, sort priority-first within each section
-- **Keyboard shortcuts**: `N` = open new task modal, `Enter` = save from anywhere in modal, `Esc` = close modal, `Cmd+K` = open modal, `Cmd+Z/Y` = undo/redo
+- **Click-to-edit**: clicking a task card body opens the edit modal directly
+- **Multi-select & bulk actions**: Cmd+click selects cards; a floating bulk bar appears with Date, Priority, and Delete actions; `⌘⌫` deletes selected tasks
+- **Description links**: URLs in task descriptions are auto-linkified via `linkify()`
+- **Keyboard shortcuts** (global): `C` = new task, `/` = search, `?` = show shortcuts, `⌘Z` = undo, `⌘⇧Z` = redo
+- **Keyboard shortcuts** (in modal): `Enter` = save, `⌘↩` = save + create another, `⌘⌫` = delete (edit mode only), `Esc` = close; `T/M/U/F/S` = date presets; `1/2/3/0` = priority
+- **Search**: `/` opens a modal search overlay; results show section badge and description snippet; `Enter` opens the matched task; `Esc` closes
+- **Done section**: shows only tasks completed *today* (local timezone); badge count reflects today's completions only; tasks completed on prior days are hidden until revisited
+- **Completed task modal**: when opening a completed task, a "Completed at …" banner is shown at the top of the modal
+- **Undo/redo**: covers all mutations — create, edit, delete, complete/uncomplete, priority change, due date change, and bulk actions; toast button triggers undo
 - **Empty state**: when a user has no active tasks, the grid is hidden and a "You're all caught up!" prompt is shown
 - **Logo**: `mytodopagelogo.svg` — used in header, auth overlay, favicon, apple-touch-icon, and privacy page
 - **Dev mode**: generates 5 test tasks (tagged `_dev:true`) and can bulk-delete them
@@ -70,9 +79,8 @@ create policy "own tasks only" on tasks
 - Tap card description to expand beyond 2-line clamp
 
 ## Parked ideas (not yet built)
-- Search / filter bar
+- Filter bar (search is built; per-section or priority filtering is not)
 - Dark mode
-- Natural language date input ("friday", "next week")
 - Recurring tasks
 - Account deletion flow (needed before opening to public users)
 - Completion micro-animation (checkmark flash / strikethrough)

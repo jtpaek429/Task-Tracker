@@ -1719,6 +1719,7 @@ async function deleteAccount() {
     }
     closeDeleteAccountModal();
     await sb.auth.signOut();
+    setAuthMessage('Your account has been deleted.', 'success');
   } catch (e) {
     btn.disabled = false;
     btn.textContent = 'Delete my account';

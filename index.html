@@ -369,6 +369,7 @@
     .card-desc.expanded {
       display: block; overflow: visible; -webkit-line-clamp: unset;
     }
+    .card-desc a { text-decoration: underline; word-break: break-all; }
     .completed-at { font-size: 10px; color: var(--gray-300); margin-top: 4px; }
 
     .card-footer {
@@ -429,7 +430,17 @@
     }
     .overlay.open .modal { transform: translateY(0) scale(1); }
 
-    .modal-heading { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    input.modal-title-input {
+      width: 100%; border: none; border-bottom: 2px solid transparent;
+      border-radius: 0; padding: 8px 0; margin-bottom: 20px;
+      font-size: 18px; font-weight: 400; font-family: inherit;
+      color: var(--gray-900); background: transparent; outline: none;
+      transition: border-color .15s; box-shadow: none;
+      line-height: normal;
+    }
+    input.modal-title-input:focus { border-bottom-color: var(--red); box-shadow: none; }
+    input.modal-title-input::placeholder { color: var(--gray-300); font-weight: 400; }
+    input.modal-title-input.error { border-bottom-color: var(--red) !important; }
 
     .fg { margin-bottom: 14px; }
     .fg label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
@@ -981,12 +992,7 @@
 <!-- ── Task modal ─────────────────────────────────────── -->
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
   <div class="modal">
-    <div class="modal-heading" id="modalHeading">Add New Task</div>
-
-    <div class="fg">
-      <label for="fTitle">Task name <span class="hint">(required)</span></label>
-      <input type="text" id="fTitle" placeholder="e.g. Review project proposal" autocomplete="off" />
-    </div>
+    <input type="text" id="fTitle" class="modal-title-input" placeholder="Task name…" autocomplete="off" />
 
     <div class="fg">
       <label for="fDesc">Description</label>
@@ -1649,7 +1655,7 @@ function buildCard(task, compact) {
       <div class="check${task.completed?' checked':''}" onclick="toggle(event,'${task.id}')"></div>
       <div class="card-body">
         <div class="card-title">${task.priority ? `<span class="prio-badge p${task.priority}">P${task.priority}</span>` : ''}${esc(task.title)}</div>
-        ${task.description ? `<div class="card-desc" onclick="toggleDesc(event)">${esc(task.description)}</div>` : ''}
+        ${task.description ? `<div class="card-desc" onclick="toggleDesc(event)">${linkify(task.description)}</div>` : ''}
         ${doneHtml}
       </div>
     </div>
@@ -1663,6 +1669,18 @@ function buildCard(task, compact) {
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function linkify(text) {
+  const urlRe = /\b(?:https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.(?:com|net|org|gov|edu|io|co|uk|app|dev|ai|me|info|biz|us|mil|int|pro|xyz|tech|site|online)(?:\/[^\s<>"']*)?)/g;
+  const parts = []; let last = 0, m;
+  while ((m = urlRe.exec(text)) !== null) {
+    parts.push(esc(text.slice(last, m.index)));
+    const href = /^https?:\/\//i.test(m[0]) ? m[0] : `https://${m[0]}`;
+    parts.push(`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${esc(m[0])}</a>`);
+    last = m.index + m[0].length;
+  }
+  parts.push(esc(text.slice(last)));
+  return parts.join('');
+}
 function toggleDesc(e) { e.stopPropagation(); e.currentTarget.classList.toggle('expanded'); }
 
 // ══════════════════════════════════════════════════════════
@@ -1910,13 +1928,12 @@ function startEdit(e, id) {
   document.getElementById('fDesc').value  = t.description || '';
   document.getElementById('fDue').value     = t.due  || '';
   document.getElementById('fDueText').value = t.due ? fmtDate(t.due) : '';
-  document.getElementById('modalHeading').textContent = 'Edit Task';
   document.getElementById('btnSave').textContent = 'Save Changes';
   clearPresets();
   if (t.due) { autoHighlightPreset(t.due); updateDatePreview(t.due); } else { updateDatePreview(null); }
   clearPriority();
   if (t.priority) setPriority(t.priority);
-  openModal();
+  openModal(false);
 }
 
 function saveTask() {
@@ -1965,7 +1982,6 @@ function quickAdd(section) {
   document.getElementById('fDue').value = iso;
   const labels = { 0:'today', 1:'tomorrow' };
   document.getElementById('fDueText').value = days === null ? '' : (labels[days] ?? fmtDate(iso));
-  document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';
   clearPresets();
   setActivePreset(QUICK_PKEY[section]);
@@ -2035,9 +2051,9 @@ function autoHighlightPreset(dateStr) {
 // ══════════════════════════════════════════════════════════
 //  MODAL
 // ══════════════════════════════════════════════════════════
-function openModal() {
+function openModal(focusTitle = true) {
   document.getElementById('overlay').classList.add('open');
-  setTimeout(() => document.getElementById('fTitle').focus(), 60);
+  if (focusTitle) setTimeout(() => document.getElementById('fTitle').focus(), 60);
 }
 function showShortcuts() { document.getElementById('shortcutsOverlay').classList.add('open'); }
 function closeShortcuts() { document.getElementById('shortcutsOverlay').classList.remove('open'); }
@@ -2051,7 +2067,6 @@ function closeModal() {
   document.getElementById('fDueText').value = '';
   updateDatePreview(null);
   document.getElementById('fTitle').classList.remove('error');
-  document.getElementById('modalHeading').textContent = 'Add New Task';
   document.getElementById('btnSave').textContent = 'Add Task';
   clearPresets();
   clearPriority();
@@ -2187,7 +2202,14 @@ document.addEventListener('keydown', e => {
 
   if (e.key === 'Escape') {
     if (shortcutsOpen) { closeShortcuts(); return; }
-    if (inField && modalOpen) { document.activeElement.blur(); return; }
+    if (inField && modalOpen) {
+      const empty = !document.getElementById('fTitle').value.trim() &&
+                    !document.getElementById('fDesc').value.trim() &&
+                    !document.getElementById('fDue').value &&
+                    !getSelectedPriority();
+      if (!empty) { document.activeElement.blur(); return; }
+    }
+    if (!modalOpen && selectedIds.size > 0) { clearSelection(); return; }
     closeModal(); return;
   }
 

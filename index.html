@@ -334,13 +334,13 @@
     }
 
     /* ── Card internals ───────────────────────────────── */
-    .card-top  { display: flex; align-items: flex-start; gap: 9px; }
+    .card-top  { display: flex; align-items: center; gap: 9px; }
     .card-body { flex: 1; min-width: 0; }
 
     .check {
       width: 20px; height: 20px;
       border: 2px solid var(--gray-300); border-radius: 50%;
-      flex-shrink: 0; cursor: pointer; margin-top: 1px;
+      flex-shrink: 0; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: border-color .15s, background .15s;
       position: relative;

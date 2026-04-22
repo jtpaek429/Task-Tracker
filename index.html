@@ -7,6 +7,15 @@
   <link rel="icon" type="image/svg+xml" href="mytodopagelogo.svg" />
   <link rel="apple-touch-icon" href="mytodopagelogo.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <meta name="description" content="A clean, keyboard-first personal task tracker. Organize tasks by urgency — due today, upcoming, future, and more. Syncs across devices." />
+  <meta property="og:title" content="mytodo.page" />
+  <meta property="og:description" content="A clean, keyboard-first personal task tracker. Syncs across devices." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mytodo.page" />
+  <meta property="og:image" content="https://mytodo.page/mytodopagelogo.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="mytodo.page" />
+  <meta name="twitter:description" content="A clean, keyboard-first personal task tracker. Syncs across devices." />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1172,7 +1181,7 @@
         <button class="btn-save" id="authSubmitBtn" onclick="submitAuth()" style="width:100%">Sign In</button>
       </div>
       <p style="text-align:center;font-size:11px;color:var(--gray-400);margin-top:16px">
-        By signing in, you agree to our <a href="/privacy.html" target="_blank" style="color:var(--gray-400)">Privacy Policy</a>
+        By signing in, you agree to our <a href="/terms.html" target="_blank" style="color:var(--gray-400)">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="color:var(--gray-400)">Privacy Policy</a>
       </p>
     </div>
 
@@ -1335,8 +1344,8 @@
 <!-- ── Toast ──────────────────────────────────────────── -->
 <div class="toast" id="toast">
   <span id="toastMsg">✓ Task completed</span>
-  <button class="toast-undo" onclick="undoLast()">Undo</button>
-  <span class="toast-kbd">⌘Z</span>
+  <button class="toast-undo" id="toastUndoBtn" onclick="undoLast()">Undo</button>
+  <span class="toast-kbd" id="toastKbd">⌘Z</span>
 </div>
 
 <!-- ── Bulk action bar ────────────────────────────────── -->
@@ -1390,13 +1399,6 @@ const sb = (SUPABASE_URL !== 'YOUR_SUPABASE_URL')
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-// ══════════════════════════════════════════════════════════
-//  DEV CONFIG — auto-login on Vercel preview branches
-//  Create a throwaway Supabase account and fill in below.
-// ══════════════════════════════════════════════════════════
-const DEV_AUTO_LOGIN    = location.hostname.endsWith('.vercel.app');
-const DEV_TEST_EMAIL    = 'test@test.com';
-const DEV_TEST_PASSWORD = 'test';
 
 // ══════════════════════════════════════════════════════════
 //  STATE
@@ -1601,13 +1603,13 @@ function rowToTask(r) {
 async function dbUpsert(task) {
   if (!sb || !currentUser) return;
   const { error } = await sb.from('tasks').upsert(taskToRow(task));
-  if (error) console.error('Supabase upsert error:', error.message);
+  if (error) { console.error('Supabase upsert error:', error.message); showToast('⚠ Changes not saved — check your connection', false); }
 }
 
 async function dbDelete(id) {
   if (!sb || !currentUser) return;
   const { error } = await sb.from('tasks').delete().eq('id', id).eq('user_id', currentUser.id);
-  if (error) console.error('Supabase delete error:', error.message);
+  if (error) { console.error('Supabase delete error:', error.message); showToast('⚠ Changes not saved — check your connection', false); }
 }
 
 async function loadTasksFromDB() {
@@ -1654,12 +1656,7 @@ async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (_inRecoveryFlow) return; // onAuthStateChange already handled this
   if (!session?.user) {
-    if (DEV_AUTO_LOGIN && DEV_TEST_EMAIL !== 'YOUR_TEST_EMAIL') {
-      const { error } = await sb.auth.signInWithPassword({ email: DEV_TEST_EMAIL, password: DEV_TEST_PASSWORD });
-      if (error) { console.warn('Dev auto-login failed:', error.message); document.getElementById('authOverlay').classList.add('open'); }
-    } else {
-      document.getElementById('authOverlay').classList.add('open');
-    }
+    document.getElementById('authOverlay').classList.add('open');
   }
 }
 
@@ -2574,8 +2571,10 @@ function resetDevDate() {
 // ══════════════════════════════════════════════════════════
 //  TOAST
 // ══════════════════════════════════════════════════════════
-function showToast(msg = '✓ Task completed') {
+function showToast(msg = '✓ Task completed', showUndo = true) {
   document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastUndoBtn').style.display = showUndo ? '' : 'none';
+  document.getElementById('toastKbd').style.display = showUndo ? '' : 'none';
   clearTimeout(toastTimer);
   document.getElementById('toast').classList.add('show');
   toastTimer = setTimeout(hideToast, 5000);

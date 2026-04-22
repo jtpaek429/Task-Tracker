@@ -338,17 +338,21 @@
     .card-body { flex: 1; min-width: 0; }
 
     .check {
-      width: 16px; height: 16px;
+      width: 20px; height: 20px;
       border: 2px solid var(--gray-300); border-radius: 50%;
-      flex-shrink: 0; cursor: pointer; margin-top: 2px;
+      flex-shrink: 0; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: border-color .15s, background .15s;
+      position: relative;
+    }
+    .check::before {
+      content: ''; position: absolute; inset: -7px; border-radius: 50%;
     }
     .check:hover { border-color: var(--red); }
     .check.checked { background: var(--red); border-color: var(--red); }
     .check.checked::after {
       content: ''; display: block;
-      width: 7px; height: 4px;
+      width: 9px; height: 5px;
       border-left: 2px solid #fff; border-bottom: 2px solid #fff;
       transform: rotate(-45deg) translateY(-1px);
     }
@@ -521,6 +525,14 @@
       min-height: 18px; transition: opacity .15s;
     }
     .date-preview.valid { color: var(--red); font-weight: 500; }
+
+    .completed-banner {
+      display: flex; align-items: center; gap: 7px;
+      background: #f0fdf4; border: 1.5px solid #86efac;
+      border-radius: 8px; padding: 9px 12px; margin-bottom: 16px;
+      font-size: 13px; color: #166534; font-weight: 500;
+    }
+    .completed-banner svg { flex-shrink: 0; }
 
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     .btn-cancel {
@@ -759,6 +771,61 @@
     .bulk-panel-del .del-yes { background: var(--red); color: #fff; border-color: transparent; }
     .bulk-panel-del .del-yes:hover { background: #c23028; }
 
+    /* ── Search overlay ──────────────────────────────── */
+    #searchOverlay { align-items: flex-start; padding-top: 12vh; }
+    .search-modal {
+      width: 560px; max-width: calc(100vw - 32px);
+      padding: 0; border-radius: 14px;
+    }
+    .search-input-wrap {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .search-icon { color: var(--gray-400); flex-shrink: 0; }
+    #searchInput {
+      flex: 1; border: none; outline: none; box-shadow: none;
+      font-size: 16px; font-family: inherit; color: var(--gray-900);
+      background: transparent; padding: 0;
+    }
+    #searchInput::placeholder { color: var(--gray-300); }
+    .search-esc-hint {
+      font-size: 11px; color: var(--gray-400);
+      background: var(--gray-100); border: 1px solid var(--gray-200);
+      border-radius: 4px; padding: 2px 6px; font-family: inherit; white-space: nowrap;
+    }
+    .search-results { max-height: 400px; overflow-y: auto; }
+    .search-result {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 16px; cursor: pointer;
+      border-bottom: 1px solid var(--gray-100); transition: background .1s;
+    }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover { background: var(--gray-50); }
+    .search-result.active { background: var(--gray-100); }
+    .search-result-body { flex: 1; min-width: 0; }
+    .search-result-title { font-size: 13px; font-weight: 500; color: var(--gray-900); line-height: 1.4; }
+    .search-result-title mark, .search-result-desc mark {
+      background: #fef08a; color: inherit; border-radius: 2px; padding: 0 1px; font-style: normal;
+    }
+    .search-result-desc {
+      font-size: 11px; color: var(--gray-400); margin-top: 2px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .search-section-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 100px;
+      flex-shrink: 0; margin-top: 2px; white-space: nowrap;
+    }
+    .ssb-red   { background: #fee2e2; color: var(--red); }
+    .ssb-amber { background: #fef3c7; color: #92400e; }
+    .ssb-blue  { background: #eff6ff; color: var(--blue); }
+    .ssb-gray  { background: var(--gray-100); color: var(--gray-500); }
+    .ssb-green { background: #dcfce7; color: #166534; }
+    .search-empty {
+      padding: 36px 16px; text-align: center;
+      font-size: 13px; color: var(--gray-400);
+    }
+
     /* ── Shortcuts overlay ───────────────────────────── */
     .shortcuts-table { width: 100%; border-collapse: collapse; margin: 4px 0 16px; }
     .shortcuts-table .sc-section td {
@@ -917,6 +984,7 @@
       <div class="panel-title">
         <span class="chevron" id="chev-done">▾</span>
         Completed
+        <span class="panel-sub">Today</span>
       </div>
       <span class="badge" id="badge-done">0</span>
     </div>
@@ -992,6 +1060,12 @@
 <!-- ── Task modal ─────────────────────────────────────── -->
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
   <div class="modal">
+    <div id="completedBanner" class="completed-banner" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+      </svg>
+      <span id="completedBannerText"></span>
+    </div>
     <input type="text" id="fTitle" class="modal-title-input" placeholder="Task name…" autocomplete="off" />
 
     <div class="fg">
@@ -1046,6 +1120,7 @@
       <tbody>
         <tr class="sc-section"><td colspan="2">Global</td></tr>
         <tr><td><span class="sc-kbd">C</span></td><td>New task</td></tr>
+        <tr><td><span class="sc-kbd">/</span></td><td>Search tasks</td></tr>
         <tr><td><span class="sc-kbd">?</span></td><td>Show shortcuts</td></tr>
         <tr><td><span class="sc-kbd">⌘Z</span></td><td>Undo</td></tr>
         <tr><td><span class="sc-kbd">⌘⇧Z</span></td><td>Redo</td></tr>
@@ -1070,6 +1145,20 @@
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeShortcuts()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Search overlay ────────────────────────────────── -->
+<div class="overlay" id="searchOverlay" onclick="if(event.target.id==='searchOverlay')closeSearch()">
+  <div class="modal search-modal">
+    <div class="search-input-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Search tasks…" autocomplete="off" oninput="onSearchInput()" />
+      <kbd class="search-esc-hint">Esc</kbd>
+    </div>
+    <div id="searchResults" class="search-results"></div>
   </div>
 </div>
 
@@ -1506,12 +1595,10 @@ function render() {
   ['overdue','due-soon','upcoming','f1w','f2w','f1m'].forEach(k => G[k].sort(byPrioThenDue));
   G.done.sort((a,b) => (b.completedAt||'').localeCompare(a.completedAt||''));
 
-  // Hide completed tasks older than 7 days
-  const _cutoff = new Date(todayDate());
-  _cutoff.setDate(_cutoff.getDate() - 7);
-  const _cutoffISO = _cutoff.toISOString().slice(0,10);
+  // Show only tasks completed today; track total for badge
+  const _todayISO = toISO(todayDate());
   const _doneTotal = G.done.length;
-  G.done = G.done.filter(t => !t.completedAt || t.completedAt.slice(0,10) >= _cutoffISO);
+  G.done = G.done.filter(t => !t.completedAt || t.completedAt.slice(0,10) === _todayISO);
 
   // Split due-soon into today vs tomorrow
   const dueToday    = G['due-soon'].filter(t => daysDiff(t.due) === 0);
@@ -1549,7 +1636,7 @@ function render() {
   document.getElementById('badge-upcoming').textContent = G.upcoming.length;
   document.getElementById('badge-future').textContent   = G.f1w.length + G.f2w.length + G.f1m.length;
   document.getElementById('badge-unscheduled').textContent = G.unscheduled.length;
-  document.getElementById('badge-done').textContent     = G.done.length + (_doneTotal > G.done.length ? ` / ${_doneTotal}` : '');
+  document.getElementById('badge-done').textContent     = G.done.length;
 
   // Dev label
   if (devDateStr) {
@@ -1933,6 +2020,14 @@ function startEdit(e, id) {
   if (t.due) { autoHighlightPreset(t.due); updateDatePreview(t.due); } else { updateDatePreview(null); }
   clearPriority();
   if (t.priority) setPriority(t.priority);
+  const banner = document.getElementById('completedBanner');
+  if (t.completed) {
+    document.getElementById('completedBannerText').textContent =
+      t.completedAt ? `Completed ${fmtCompletedAt(t.completedAt)}` : 'Completed';
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
   openModal(false);
 }
 
@@ -2068,6 +2163,7 @@ function closeModal() {
   updateDatePreview(null);
   document.getElementById('fTitle').classList.remove('error');
   document.getElementById('btnSave').textContent = 'Add Task';
+  document.getElementById('completedBanner').style.display = 'none';
   clearPresets();
   clearPriority();
 }
@@ -2193,15 +2289,150 @@ function hideToast() {
 }
 
 // ══════════════════════════════════════════════════════════
+//  SEARCH
+// ══════════════════════════════════════════════════════════
+let searchActiveIdx = 0;
+
+function sectionLabel(t) {
+  if (t.completed) return ['Completed', 'ssb-green'];
+  if (!t.due)      return ['Unscheduled', 'ssb-gray'];
+  const d = daysDiff(t.due);
+  if (d < 0)   return ['Overdue',      'ssb-red'];
+  if (d === 0) return ['Today',        'ssb-red'];
+  if (d === 1) return ['Tomorrow',     'ssb-red'];
+  if (d <= 5)  return ['Upcoming',     'ssb-amber'];
+  if (d <= 13) return ['1 Week Out',   'ssb-blue'];
+  if (d <= 30) return ['2 Weeks Out',  'ssb-blue'];
+  return             ['1+ Month',      'ssb-blue'];
+}
+
+function highlightMatch(text, query) {
+  if (!query) return esc(text);
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const parts = [];
+  let i = 0;
+  while (i < text.length) {
+    const idx = lower.indexOf(q, i);
+    if (idx === -1) { parts.push(esc(text.slice(i))); break; }
+    parts.push(esc(text.slice(i, idx)));
+    parts.push('<mark>' + esc(text.slice(idx, idx + q.length)) + '</mark>');
+    i = idx + q.length;
+  }
+  return parts.join('');
+}
+
+function descSnippet(text, query) {
+  if (!text) return '';
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(query.toLowerCase());
+  if (idx === -1) return esc(text.slice(0, 80)) + (text.length > 80 ? '…' : '');
+  const start = Math.max(0, idx - 30);
+  const end   = Math.min(text.length, idx + query.length + 50);
+  return (start > 0 ? '…' : '') + highlightMatch(text.slice(start, end), query) + (end < text.length ? '…' : '');
+}
+
+function openSearch() {
+  document.getElementById('searchOverlay').classList.add('open');
+  document.getElementById('searchInput').value = '';
+  searchActiveIdx = 0;
+  document.getElementById('searchResults').innerHTML =
+    '<div class="search-empty">Search across all your tasks</div>';
+  setTimeout(() => document.getElementById('searchInput').focus(), 60);
+}
+
+function closeSearch() {
+  document.getElementById('searchOverlay').classList.remove('open');
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchInput').blur();
+}
+
+function onSearchInput() {
+  searchActiveIdx = 0;
+  renderSearchResults(document.getElementById('searchInput').value.trim());
+}
+
+function renderSearchResults(q) {
+  const container = document.getElementById('searchResults');
+  if (!q) {
+    container.innerHTML = '<div class="search-empty">Search across all your tasks</div>';
+    return;
+  }
+  const lower = q.toLowerCase();
+  const matches = tasks
+    .filter(t =>
+      t.title.toLowerCase().includes(lower) ||
+      (t.description && t.description.toLowerCase().includes(lower)) ||
+      (t.link && t.link.toLowerCase().includes(lower))
+    )
+    .sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return 0;
+    });
+
+  if (!matches.length) {
+    container.innerHTML = '<div class="search-empty">No tasks found</div>';
+    return;
+  }
+
+  container.innerHTML = matches.map((t, i) => {
+    const [label, cls] = sectionLabel(t);
+    const titleHtml = highlightMatch(t.title, q);
+    const inDesc  = t.description && t.description.toLowerCase().includes(lower);
+    const inLink  = t.link && t.link.toLowerCase().includes(lower);
+    let subHtml = '';
+    if (inDesc)       subHtml = descSnippet(t.description, q);
+    else if (inLink)  subHtml = descSnippet(t.link, q);
+    else if (t.description) subHtml = esc(t.description.slice(0, 80)) + (t.description.length > 80 ? '…' : '');
+    return `<div class="search-result${i === searchActiveIdx ? ' active' : ''}" data-task-id="${esc(t.id)}" onclick="searchOpenTask('${esc(t.id)}')">
+      <div class="search-result-body">
+        <div class="search-result-title">${titleHtml}</div>
+        ${subHtml ? `<div class="search-result-desc">${subHtml}</div>` : ''}
+      </div>
+      <span class="search-section-badge ${cls}">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+function searchOpenTask(id) {
+  closeSearch();
+  startEdit({ stopPropagation: () => {} }, id);
+}
+
+function updateSearchActive() {
+  const results = document.querySelectorAll('#searchResults .search-result');
+  results.forEach((r, i) => r.classList.toggle('active', i === searchActiveIdx));
+  results[searchActiveIdx]?.scrollIntoView({ block: 'nearest' });
+}
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  const results = document.querySelectorAll('#searchResults .search-result');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    searchActiveIdx = Math.min(searchActiveIdx + 1, results.length - 1);
+    updateSearchActive();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    searchActiveIdx = Math.max(searchActiveIdx - 1, 0);
+    updateSearchActive();
+  } else if (e.key === 'Enter' && results[searchActiveIdx]) {
+    e.stopPropagation();
+    searchOpenTask(results[searchActiveIdx].dataset.taskId);
+  }
+});
+
+// ══════════════════════════════════════════════════════════
 //  KEYBOARD SHORTCUTS
 // ══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
   const inField      = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
   const modalOpen    = document.getElementById('overlay').classList.contains('open');
   const shortcutsOpen = document.getElementById('shortcutsOverlay').classList.contains('open');
+  const searchOpen   = document.getElementById('searchOverlay').classList.contains('open');
 
   if (e.key === 'Escape') {
     if (shortcutsOpen) { closeShortcuts(); return; }
+    if (searchOpen)    { closeSearch(); return; }
     if (inField && modalOpen) {
       const empty = !document.getElementById('fTitle').value.trim() &&
                     !document.getElementById('fDesc').value.trim() &&
@@ -2234,8 +2465,9 @@ document.addEventListener('keydown', e => {
   }
 
   // Global shortcuts (outside modal)
-  if (!inField && !modalOpen && !shortcutsOpen) {
+  if (!inField && !modalOpen && !shortcutsOpen && !searchOpen) {
     if (!e.metaKey && !e.ctrlKey && e.key === 'c') { openModal(); return; }
+    if (!e.metaKey && !e.ctrlKey && e.key === '/') { e.preventDefault(); openSearch(); return; }
     if (e.key === '?') { showShortcuts(); return; }
     if ((e.metaKey||e.ctrlKey) && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) { e.preventDefault(); bulkDoDelete(); return; }
   }

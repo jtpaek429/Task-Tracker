@@ -1383,6 +1383,7 @@
 //  Replace these two values with your project's credentials.
 //  Find them at: supabase.com → your project → Settings → API
 // ══════════════════════════════════════════════════════════
+const _initialHash = window.location.hash; // captured before Supabase clears it
 const SUPABASE_URL      = 'https://vddheuudimyvnbgtvvip.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkZGhldXVkaW15dm5iZ3R2dmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA4ODEsImV4cCI6MjA5MjI4Njg4MX0.C4ylfjY8xOvk_6vL2NtWfQ3V423kI6LeO1ONvexIC6E';
 
@@ -1635,16 +1636,7 @@ async function initAuth() {
     return;
   }
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    onSignedIn(session.user);
-  } else if (DEV_AUTO_LOGIN && DEV_TEST_EMAIL !== 'YOUR_TEST_EMAIL') {
-    const { error } = await sb.auth.signInWithPassword({ email: DEV_TEST_EMAIL, password: DEV_TEST_PASSWORD });
-    if (error) { console.warn('Dev auto-login failed:', error.message); document.getElementById('authOverlay').classList.add('open'); }
-  } else {
-    document.getElementById('authOverlay').classList.add('open');
-  }
-
+  // Register before getSession so PASSWORD_RECOVERY isn't missed
   sb.auth.onAuthStateChange((_event, session) => {
     if (_event === 'PASSWORD_RECOVERY') {
       document.getElementById('authOverlay').classList.add('open');
@@ -1655,6 +1647,22 @@ async function initAuth() {
       onSignedOut();
     }
   });
+
+  const isRecovery = _initialHash.includes('type=recovery');
+  if (isRecovery) {
+    document.getElementById('authOverlay').classList.add('open');
+    return; // onAuthStateChange handles the rest
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    onSignedIn(session.user);
+  } else if (DEV_AUTO_LOGIN && DEV_TEST_EMAIL !== 'YOUR_TEST_EMAIL') {
+    const { error } = await sb.auth.signInWithPassword({ email: DEV_TEST_EMAIL, password: DEV_TEST_PASSWORD });
+    if (error) { console.warn('Dev auto-login failed:', error.message); document.getElementById('authOverlay').classList.add('open'); }
+  } else {
+    document.getElementById('authOverlay').classList.add('open');
+  }
 }
 
 const DEV_ALLOWED_EMAILS = ['jpaek429@gmail.com', 'test@test.com'];

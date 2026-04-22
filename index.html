@@ -90,20 +90,56 @@
     .btn-add:hover::after { opacity: 1; }
 
     /* ── User area ────────────────────────────────────── */
-    .user-area {
-      display: flex; align-items: center; gap: 8px;
-      padding: 5px 10px; border-radius: 8px;
-      border: 1.5px solid var(--gray-200);
-      background: var(--gray-50);
+    .user-area { position: relative; }
+    .btn-user-menu {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; padding: 5px 10px; border-radius: 8px;
+      border: 1.5px solid var(--gray-200); background: var(--gray-50);
+      color: var(--gray-500); cursor: pointer; font-family: inherit;
+      transition: all .15s; max-width: 200px;
     }
-    .user-email { font-size: 12px; color: var(--gray-500); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .btn-signout {
-      font-size: 12px; padding: 3px 8px;
-      border: 1.5px solid var(--gray-200); border-radius: 5px;
-      background: #fff; color: var(--gray-500);
+    .btn-user-menu:hover { background: var(--gray-100); border-color: var(--gray-300); }
+    .user-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-menu-caret { flex-shrink: 0; transition: transform .15s; }
+    .user-area.open .user-menu-caret { transform: rotate(180deg); }
+    .user-dropdown {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0;
+      min-width: 180px; background: #fff; border: 1.5px solid var(--gray-200);
+      border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.1);
+      overflow: hidden; z-index: 200;
+    }
+    .user-area.open .user-dropdown { display: block; }
+    .user-dropdown-item {
+      display: block; width: 100%; text-align: left;
+      font-size: 13px; padding: 10px 14px;
+      border: none; background: none; color: var(--gray-700);
+      cursor: pointer; font-family: inherit; transition: background .1s;
+    }
+    .user-dropdown-item:hover { background: var(--gray-50); }
+    .user-dropdown-item.danger { color: var(--red); }
+    .user-dropdown-item.danger:hover { background: #fee2e2; }
+    .user-dropdown-divider { height: 1px; background: var(--gray-200); margin: 2px 0; }
+
+    /* ── Delete account modal ─────────────────────────── */
+    .delete-account-modal { max-width: 400px; }
+    .delete-account-modal h2 { margin: 0 0 8px; font-size: 18px; color: var(--gray-900); }
+    .delete-account-modal p { margin: 0 0 20px; font-size: 14px; color: var(--gray-500); line-height: 1.5; }
+    .delete-account-modal .danger-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-confirm-delete {
+      font-size: 14px; padding: 8px 18px;
+      border: none; border-radius: 7px;
+      background: var(--red); color: #fff;
+      cursor: pointer; font-family: inherit; font-weight: 600; transition: opacity .15s;
+    }
+    .btn-confirm-delete:hover { opacity: .85; }
+    .btn-confirm-delete:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-cancel-delete {
+      font-size: 14px; padding: 8px 18px;
+      border: 1.5px solid var(--gray-200); border-radius: 7px;
+      background: #fff; color: var(--gray-600);
       cursor: pointer; font-family: inherit; transition: all .15s;
     }
-    .btn-signout:hover { background: #fee2e2; border-color: #fecaca; color: var(--red); }
+    .btn-cancel-delete:hover { background: var(--gray-100); }
 
     /* ── Dev bar ──────────────────────────────────────── */
     .dev-bar {
@@ -882,10 +918,19 @@
     </div>
   </div>
   <div class="header-right">
-    <button class="btn-dev" id="devBtn" onclick="toggleDevMode()">🧪 Dev</button>
+    <button class="btn-dev" id="devBtn" onclick="toggleDevMode()" style="display:none">🧪 Dev</button>
     <div class="user-area" id="userArea" style="display:none">
-      <span class="user-email" id="userEmailDisplay"></span>
-      <button class="btn-signout" onclick="signOut()">Sign out</button>
+      <button class="btn-user-menu" onclick="toggleUserMenu()">
+        <span class="user-email" id="userEmailDisplay"></span>
+        <svg class="user-menu-caret" width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="user-dropdown">
+        <button class="user-dropdown-item" onclick="signOut()">Sign out</button>
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item danger" onclick="closeUserMenu(); openDeleteAccountModal()">Delete account…</button>
+      </div>
     </div>
     <button class="btn-shortcuts" onclick="showShortcuts()">? Shortcuts</button>
     <button class="btn-add" onclick="openModal()">
@@ -1213,6 +1258,18 @@
     </table>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeShortcuts()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete account modal ──────────────────────────── -->
+<div class="overlay" id="deleteAccountOverlay" onclick="if(event.target.id==='deleteAccountOverlay')closeDeleteAccountModal()">
+  <div class="modal delete-account-modal">
+    <h2>Delete account</h2>
+    <p>This will permanently delete your account and all your tasks. This cannot be undone.</p>
+    <div class="danger-actions">
+      <button class="btn-cancel-delete" onclick="closeDeleteAccountModal()">Cancel</button>
+      <button class="btn-confirm-delete" id="confirmDeleteBtn" onclick="deleteAccount()">Delete my account</button>
     </div>
   </div>
 </div>
@@ -1551,11 +1608,14 @@ async function initAuth() {
   });
 }
 
+const DEV_ALLOWED_EMAILS = ['jpaek429@gmail.com', 'test@test.com'];
+
 function onSignedIn(user) {
   currentUser = user;
   document.getElementById('authOverlay').classList.remove('open');
   document.getElementById('userArea').style.display = 'flex';
   document.getElementById('userEmailDisplay').textContent = user.email;
+  document.getElementById('devBtn').style.display = DEV_ALLOWED_EMAILS.includes(user.email) ? '' : 'none';
   loadTasksFromDB();
 }
 
@@ -1564,6 +1624,7 @@ function onSignedOut() {
   tasks = [];
   localStorage.removeItem('taskflow_v3');
   document.getElementById('userArea').style.display = 'none';
+  document.getElementById('devBtn').style.display = 'none';
   document.getElementById('authOverlay').classList.add('open');
   render();
 }
@@ -1621,6 +1682,47 @@ async function signInWithGoogle() {
 
 async function signOut() {
   if (sb) await sb.auth.signOut();
+}
+
+function toggleUserMenu() {
+  document.getElementById('userArea').classList.toggle('open');
+}
+
+function closeUserMenu() {
+  document.getElementById('userArea').classList.remove('open');
+}
+
+function openDeleteAccountModal() {
+  document.getElementById('deleteAccountOverlay').classList.add('open');
+}
+
+function closeDeleteAccountModal() {
+  document.getElementById('deleteAccountOverlay').classList.remove('open');
+}
+
+async function deleteAccount() {
+  const btn = document.getElementById('confirmDeleteBtn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Deletion failed');
+    }
+    await sb.auth.signOut();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Delete my account';
+    alert('Could not delete account: ' + e.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2500,6 +2602,11 @@ document.getElementById('searchInput').addEventListener('keydown', e => {
 // ══════════════════════════════════════════════════════════
 //  KEYBOARD SHORTCUTS
 // ══════════════════════════════════════════════════════════
+document.addEventListener('click', e => {
+  const userArea = document.getElementById('userArea');
+  if (userArea && !userArea.contains(e.target)) closeUserMenu();
+});
+
 document.addEventListener('keydown', e => {
   const inField      = ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
   const modalOpen    = document.getElementById('overlay').classList.contains('open');
@@ -2507,6 +2614,7 @@ document.addEventListener('keydown', e => {
   const searchOpen   = document.getElementById('searchOverlay').classList.contains('open');
 
   if (e.key === 'Escape') {
+    if (document.getElementById('userArea').classList.contains('open')) { closeUserMenu(); return; }
     if (shortcutsOpen) { closeShortcuts(); return; }
     if (searchOpen)    { closeSearch(); return; }
     if (inField && modalOpen) {

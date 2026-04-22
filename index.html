@@ -1943,7 +1943,7 @@ function saveTask() {
   } else {
     task = { id:`t_${Date.now()}`, title, description, due, priority, completed:false, createdAt:new Date().toISOString() };
     tasks.push(task);
-    pushUndo({ prev: null, next: snapTask(task) });
+    // no undo entry for creates
   }
   save();
   if (task) dbUpsert(task);
@@ -2196,7 +2196,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'BUTTON') {
       e.preventDefault(); saveTask(); return;
     }
-    if ((e.metaKey||e.ctrlKey) && (e.key === 'Delete' || e.key === 'Backspace') && editingId) { e.preventDefault(); deleteEditingTask(); return; }
+    if (!inField && (e.metaKey||e.ctrlKey) && (e.key === 'Delete' || e.key === 'Backspace') && editingId) { e.preventDefault(); deleteEditingTask(); return; }
     if (!inField) {
       if (e.key === '1') { setPriority(1); return; }
       if (e.key === '2') { setPriority(2); return; }
@@ -2214,6 +2214,7 @@ document.addEventListener('keydown', e => {
   if (!inField && !modalOpen && !shortcutsOpen) {
     if (!e.metaKey && !e.ctrlKey && e.key === 'c') { openModal(); return; }
     if (e.key === '?') { showShortcuts(); return; }
+    if ((e.metaKey||e.ctrlKey) && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) { e.preventDefault(); bulkDoDelete(); return; }
   }
 
   // Undo/redo (always, when not in a text field)

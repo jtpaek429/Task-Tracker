@@ -30,11 +30,22 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Use service role key to delete the user (tasks cascade via RLS/FK)
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SERVICE_ROLE_KEY') ?? '',
   );
+
+  // Delete tasks first — no ON DELETE CASCADE on the FK
+  const { error: tasksError } = await supabaseAdmin
+    .from('tasks')
+    .delete()
+    .eq('user_id', user.id);
+  if (tasksError) {
+    return new Response(JSON.stringify({ error: tasksError.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {

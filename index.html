@@ -1633,12 +1633,9 @@ async function initAuth() {
     return;
   }
 
-  console.log('[auth] initAuth start — href:', location.href);
-
   // Register before getSession so PASSWORD_RECOVERY is caught during PKCE code exchange
   let _inRecoveryFlow = false;
   sb.auth.onAuthStateChange((_event, session) => {
-    console.log('[auth] onAuthStateChange:', _event, session?.user?.email ?? null);
     if (_event === 'PASSWORD_RECOVERY') {
       _inRecoveryFlow = true;
       document.getElementById('authOverlay').classList.add('open');
@@ -1654,8 +1651,7 @@ async function initAuth() {
   });
 
   // getSession() exchanges the PKCE code from the URL and triggers onAuthStateChange
-  const { data: { session }, error: sessionError } = await sb.auth.getSession();
-  console.log('[auth] getSession result — user:', session?.user?.email ?? null, 'error:', sessionError?.message ?? null, '_inRecoveryFlow:', _inRecoveryFlow);
+  const { data: { session } } = await sb.auth.getSession();
   if (_inRecoveryFlow) return; // onAuthStateChange already handled this
   if (!session?.user) {
     if (DEV_AUTO_LOGIN && DEV_TEST_EMAIL !== 'YOUR_TEST_EMAIL') {

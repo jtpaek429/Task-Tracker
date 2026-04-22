@@ -1632,7 +1632,7 @@ function render() {
   document.getElementById('badge-upcoming').textContent = G.upcoming.length;
   document.getElementById('badge-future').textContent   = G.f1w.length + G.f2w.length + G.f1m.length;
   document.getElementById('badge-unscheduled').textContent = G.unscheduled.length;
-  document.getElementById('badge-done').textContent     = G.done.length + (_doneTotal > G.done.length ? ` / ${_doneTotal}` : '');
+  document.getElementById('badge-done').textContent     = G.done.length;
 
   // Dev label
   if (devDateStr) {

@@ -1693,6 +1693,9 @@ function closeUserMenu() {
 }
 
 function openDeleteAccountModal() {
+  const btn = document.getElementById('confirmDeleteBtn');
+  btn.disabled = false;
+  btn.textContent = 'Delete my account';
   document.getElementById('deleteAccountOverlay').classList.add('open');
 }
 

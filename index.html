@@ -1717,6 +1717,7 @@ async function deleteAccount() {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || 'Deletion failed');
     }
+    closeDeleteAccountModal();
     await sb.auth.signOut();
   } catch (e) {
     btn.disabled = false;

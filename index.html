@@ -1637,13 +1637,18 @@ async function initAuth() {
   }
 
   // Register before getSession so PASSWORD_RECOVERY isn't missed
+  let _inRecoveryFlow = false;
   sb.auth.onAuthStateChange((_event, session) => {
     if (_event === 'PASSWORD_RECOVERY') {
+      _inRecoveryFlow = true;
       document.getElementById('authOverlay').classList.add('open');
       showAuthView('reset');
+    } else if (session?.user && _inRecoveryFlow) {
+      // Supabase fires SIGNED_IN right after PASSWORD_RECOVERY — ignore it
     } else if (session?.user) {
       onSignedIn(session.user);
     } else {
+      _inRecoveryFlow = false;
       onSignedOut();
     }
   });
@@ -1713,6 +1718,15 @@ function showAuthView(view) {
   if (view === 'signin' || view === 'signup') switchAuthTab(view);
 }
 
+function friendlyAuthError(error) {
+  const msg = (error?.message || '').toLowerCase();
+  if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit') || error?.status === 429)
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  if (msg.includes('security purposes') || msg.includes('after'))
+    return 'For security, please wait a moment before requesting another email.';
+  return error?.message || 'Something went wrong. Please try again.';
+}
+
 async function sendPasswordReset() {
   const email = document.getElementById('forgotEmail').value.trim();
   const msgEl = document.getElementById('forgotMessage');
@@ -1721,7 +1735,7 @@ async function sendPasswordReset() {
   btn.disabled = true; btn.textContent = 'Sending…';
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
   btn.disabled = false; btn.textContent = 'Send reset link';
-  if (error) { msgEl.textContent = error.message; msgEl.className = 'auth-message error'; }
+  if (error) { msgEl.textContent = friendlyAuthError(error); msgEl.className = 'auth-message error'; }
   else       { msgEl.textContent = 'Check your email for a reset link.'; msgEl.className = 'auth-message success'; }
 }
 
@@ -1763,11 +1777,11 @@ async function submitAuth() {
 
   if (authTab === 'signin') {
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) { setAuthMessage(error.message, 'error'); }
+    if (error) { setAuthMessage(friendlyAuthError(error), 'error'); }
   } else {
     const { error } = await sb.auth.signUp({ email, password });
     if (error) {
-      setAuthMessage(error.message, 'error');
+      setAuthMessage(friendlyAuthError(error), 'error');
     } else {
       setAuthMessage('Check your email for a confirmation link, then sign in.', 'success');
       switchAuthTab('signin');

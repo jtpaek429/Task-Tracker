@@ -1,6 +1,6 @@
 # mytodo.page
 
-A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets using natural language processing and sync across devices. 
+A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets and sync across devices. 
 
 **Live site → [mytodo.page](https://mytodo.page)**
 
@@ -13,10 +13,11 @@ A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets usi
 - Multi-select tasks with ⌘+click for bulk date, priority, or delete actions
 - Full undo/redo across every mutation — create, edit, delete, complete, and bulk actions
 - Full-text search, drag-and-drop rescheduling, and a complete keyboard shortcut system (`C` new task, `/` search, `⌘Z` undo)
+
 <img width="551" height="514" alt="image" src="https://github.com/user-attachments/assets/7c076e08-1653-476a-b4cc-ca5aae518054" />
 
 ### Why I built this
-I took on this project as a learning exercise on how to prototype & build a full stack app using Claude Code. I wanted to build something that would solve an actual problem that I experience, and ultimately landed on task tracking because I feel like I always have dozens of things to track across a number of different contexts & urgencies. I wanted to build a tool that would help me keep track of those things and focus on the things that mattered most & when they mattered most.
+I took on this project as a learning exercise on how to prototype & build using Claude Code. I wanted to build something that would solve an actual problem that I experience, and ultimately landed on task tracking because I've always felt like I track many things across a number of contexts & urgencies. 
 
 ### Stack
 Vanilla JS · Supabase (Postgres + Auth) · Vercel · Resend

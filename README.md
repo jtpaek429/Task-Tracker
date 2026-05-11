@@ -9,11 +9,12 @@ A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets & s
 ### What it does
 - Automatically routes tasks into five sections: Due Soon (Today / Tomorrow), Upcoming, Future, Unscheduled, and Done, based on due date
 - Parses natural language dates ("next friday", "apr 25") 
-<img width="551" height="514" alt="image" src="https://github.com/user-attachments/assets/7c076e08-1653-476a-b4cc-ca5aae518054" />
 - Supports priority levels (P1–P3) that sort tasks within each section
 - Multi-select tasks with ⌘+click for bulk date, priority, or delete actions
 - Full undo/redo across every mutation — create, edit, delete, complete, and bulk actions
 - Full-text search, drag-and-drop rescheduling, and a complete keyboard shortcut system (`C` new task, `/` search, `⌘Z` undo)
+<img width="551" height="514" alt="image" src="https://github.com/user-attachments/assets/7c076e08-1653-476a-b4cc-ca5aae518054" />
+
 
 ### Stack
 Vanilla JS · Supabase (Postgres + Auth) · Vercel · Resend

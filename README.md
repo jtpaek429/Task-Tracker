@@ -1,6 +1,6 @@
 # mytodo.page
 
-A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets & sync across devices.
+A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets using natural language processing and sync across devices. 
 
 **Live site → [mytodo.page](https://mytodo.page)**
 

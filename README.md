@@ -16,7 +16,7 @@ A keyboard-first personal task tracker. Tasks auto-sort into urgency buckets usi
 <img width="551" height="514" alt="image" src="https://github.com/user-attachments/assets/7c076e08-1653-476a-b4cc-ca5aae518054" />
 
 ### Why I built this
-I took on this project as a learning exercise on how to prototype & build a full stack app using Claude Code. I picked this specific domain because I feel like I always have a number of different things across different contexts that I need to track at varying urgencies, and wanted to build a tool beyond a bullet list in my journal to help me track and complete them. 
+I took on this project as a learning exercise on how to prototype & build a full stack app using Claude Code. I wanted to build something that would solve an actual problem that I experience, and ultimately landed on task tracking because I feel like I always have dozens of things to track across a number of different contexts & urgencies. I wanted to build a tool that would help me keep track of those things and focus on the things that mattered most & when they mattered most.
 
 ### Stack
 Vanilla JS · Supabase (Postgres + Auth) · Vercel · Resend
